@@ -9,6 +9,7 @@ import {
 	Send,
 	AlertCircle,
 	Loader2,
+	ShoppingBag,
 } from "lucide-react"
 import { useChefBot } from "../hooks/useChefBot"
 import Header from "../components/Header"
@@ -28,6 +29,7 @@ export default function ShoppingListApp() {
 	const [inputValue, setInputValue] = useState("")
 	const [isChatOpen, setIsChatOpen] = useState(false)
 	const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+	const [deleteModalIsOpen, setDeleteModalIsOpen] = useState(false)
 	const [shareEmail, setShareEmail] = useState("")
 	const [isDark, setIsDark] = useState(() => {
 		return localStorage.getItem("chef.theme") === "dark"
@@ -101,11 +103,10 @@ export default function ShoppingListApp() {
 		showToast("Cleared completed items")
 	}
 
-	const clearAll = () => {
-		if (window.confirm("Clear all items?")) {
-			setItems([])
-			showToast("Cleared all items")
-		}
+	const handleClearAll = () => {
+		setItems([])
+		showToast("Cleared all items")
+		setDeleteModalIsOpen(false)
 	}
 
 	const smartSort = () => {
@@ -172,10 +173,10 @@ export default function ShoppingListApp() {
 	return (
 		<div className="flex flex-col h-screen overflow-hidden bg-[#f4f7f5] dark:bg-gray-900 transition-colors">
 			<Header
-				toggleChat={() => setIsChatOpen(!isChatOpen)}
 				toggleTheme={() => setIsDark(!isDark)}
 				isDark={isDark}
 				openShare={() => setIsShareModalOpen(true)}
+				openChefBot={() => setIsChatOpen(true)}
 			/>
 
 			<main className="flex-grow flex overflow-hidden relative">
@@ -189,55 +190,72 @@ export default function ShoppingListApp() {
 								value={inputValue}
 								onChange={(e) => setInputValue(e.target.value)}
 								placeholder="Add item (e.g. 'Milk', 'Eggs')"
-								className="w-full pl-5 pr-14 py-4 rounded-2xl border-none shadow-lg focus:ring-2 focus:ring-orange-500 outline-none text-lg text-gray-800 placeholder-gray-400 dark:bg-gray-800 dark:text-white"
+								className="w-full pl-5 pr-14 py-4 rounded-2xl border-none shadow-lg focus:ring-2 focus:ring-accent-600 outline-none text-lg text-gray-800 placeholder-gray-400 dark:bg-gray-800 dark:text-white"
 							/>
 							<button
 								type="submit"
-								className="absolute right-2 top-2 bottom-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl px-4 transition-colors">
+								className="absolute right-2 top-2 bottom-2 bg-accent-600 hover:bg-accent-700 text-white rounded-xl px-4 transition-colors">
 								<Plus className="w-6 h-6" />
 							</button>
 						</form>
 					</div>
 
-					{/* Controls */}
-					<div className="px-6 pb-2 max-w-3xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-4">
-						<div className="flex gap-2">
-							{["all", "active", "completed"].map((f) => (
-								<button
-									key={f}
-									onClick={() => setFilter(f)}
-									className={clsx(
-										"filter-btn capitalize",
-										filter === f
-											? "active"
-											: "inactive dark:text-gray-400 dark:hover:bg-gray-800",
-									)}>
-									{f === "active"
-										? "To Buy"
-										: f === "completed"
-											? "Done"
-											: "All"}
-								</button>
-							))}
-						</div>
-
-						<div className="flex items-center gap-3">
-							<button
-								onClick={smartSort}
-								className="text-xs font-semibold text-orange-600 bg-orange-50 hover:bg-orange-100 px-3 py-1 rounded-lg transition-colors dark:bg-orange-900/30 dark:text-orange-400">
-								Smart Sort
-							</button>
-							<span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+					{/* Progress */}
+					<div className="pb-4 max-w-3xl mx-auto w-full px-6">
+						<div className="flex justify-between text-xs font-medium text-black-500 mb-1">
+							<span>Shopping Progress</span>
+							<span className="text-xs font-bold text-black-400 uppercase tracking-wider">
 								{completedCount}/{items.length} done
 							</span>
 						</div>
+						<div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+							<div
+								id="progress-fill"
+								className="h-full bg-accent-500 transition-all duration-500 ease-out"
+								style={{ width: `${progress}%` }}></div>
+						</div>
 					</div>
-
-					{/* Progress */}
-					<div className="w-full h-1 bg-gray-200 dark:bg-gray-800">
-						<div
-							className="h-full bg-orange-500 transition-all duration-500"
-							style={{ width: `${progress}%` }}></div>
+					<div className="bg-transparent p-4 max-w-3xl mx-auto w-full">
+						<div className="flex bg-white rounded-xl shadow-sm border border-gray-100 z-20 mx-2">
+							<button
+								onClick={() => setFilter("all")}
+								className={clsx(
+									"tab-btn flex-1 py-3 text-sm font-semibold transition-all",
+									filter === "all"
+										? "bg-accent-500 text-white rounded-l-lg"
+										: "hover:bg-gray-100 dark:hover:bg-gray-800",
+								)}
+								data-tab="all">
+								All
+							</button>
+							<button
+								onClick={() => setFilter("active")}
+								className={clsx(
+									"tab-btn flex-1 py-3 text-sm font-semibold transition-all",
+									filter === "active"
+										? "bg-accent-500 text-white"
+										: "hover:bg-gray-100 dark:hover:bg-gray-800",
+								)}
+								data-tab="to-buy">
+								To Buy
+							</button>
+							<button
+								onClick={() => setFilter("completed")}
+								className={clsx(
+									"tab-btn flex-1 py-3 text-sm font-semibold transition-all",
+									filter === "completed"
+										? "bg-accent-500 text-white"
+										: "hover:bg-gray-100 dark:hover:bg-gray-800",
+								)}
+								data-tab="done">
+								Done
+							</button>
+							<button
+								className="tab-btn flex-1 py-3 text-sm font-semibold transition-all"
+								data-tab="shared">
+								Shared
+							</button>
+						</div>
 					</div>
 
 					{/* List */}
@@ -245,8 +263,7 @@ export default function ShoppingListApp() {
 						{filteredItems.length === 0 ? (
 							<div className="flex flex-col items-center justify-center py-12 text-center opacity-60">
 								<div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-full mb-4">
-									hey
-									{/* <ShoppingBag className="w-8 h-8 text-gray-400" /> */}
+									<ShoppingBag className="w-8 h-8 text-gray-400" />
 								</div>
 								<p className="text-gray-500 dark:text-gray-400 font-medium">
 									Your list is empty.
@@ -260,7 +277,7 @@ export default function ShoppingListApp() {
 								<div
 									key={item.id}
 									className={clsx(
-										"group flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200",
+										"group flex items-center gap-3 p-3 py-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200",
 										item.completed &&
 											"opacity-60 bg-gray-50 dark:bg-gray-800/50",
 									)}>
@@ -275,8 +292,8 @@ export default function ShoppingListApp() {
 											className={clsx(
 												"w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors",
 												item.completed
-													? "bg-orange-500 border-orange-500"
-													: "border-gray-300 dark:border-gray-600 hover:border-orange-500",
+													? "bg-accent-600 border-accent-600"
+													: "border-gray-300 dark:border-gray-600 hover:border-accent-500",
 											)}>
 											{item.completed && (
 												<Check
@@ -307,143 +324,191 @@ export default function ShoppingListApp() {
 						)}
 					</div>
 
-					{/* Footer Actions */}
-					<div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-[#f4f7f5] dark:bg-gray-900 flex flex-wrap items-center justify-center gap-3">
-						<button
-							onClick={clearCompleted}
-							className="text-sm text-red-500 hover:text-red-600 font-medium hover:underline">
-							Clear Completed
-						</button>
-						<button
-							onClick={clearAll}
-							className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 font-medium hover:underline">
-							Clear All
-						</button>
+					<div class="bg-white border-t border-gray-200 p-4">
+						<div class="mx-auto max-w-full sm:max-w-3xl lg:max-w-4xl">
+							<div class="flex justify-between items-start sm:items-center">
+								{/* Left stack */}
+								<div class="flex flex-col gap-3 sm:flex-row sm:gap-3">
+									<button
+										onClick={smartSort}
+										class="text-sm font-medium text-gray-600 hover:text-accent-700 bg-gray-100 hover:bg-accent-50 px-4 py-2 rounded-lg transition-colors">
+										Smart Sort
+									</button>
+
+									<button
+										onClick={clearCompleted}
+										class="text-sm font-medium text-gray-600 hover:text-teal-700 bg-gray-100 hover:bg-teal-50 px-4 py-2 rounded-lg transition-colors">
+										Clear Completed
+									</button>
+								</div>
+
+								{/* Right button */}
+								<button
+									onClick={() => setDeleteModalIsOpen(true)}
+									class="text-sm font-medium text-red-500 bg-gray-100 hover:text-red-700 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors sm:ml-auto">
+									Clear All
+								</button>
+							</div>
+						</div>
 					</div>
 				</section>
 
-				{/* Chat Sidebar (Desktop) / Modal (Mobile) */}
-				<aside
-					className={clsx(
-						"fixed inset-y-0 right-0 w-full lg:w-96 bg-white dark:bg-gray-900 shadow-2xl transform transition-transform duration-300 z-30 flex flex-col border-l border-gray-200 dark:border-gray-800",
-						isChatOpen
-							? "translate-x-0"
-							: "translate-x-full lg:translate-x-0 lg:w-0 lg:border-none lg:overflow-hidden",
-					)}>
-					{/* Chat Header */}
-					<div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-white dark:bg-gray-900">
-						<div className="flex items-center gap-2">
-							<div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center text-orange-600">
-								<MessageSquare className="w-5 h-5" />
-							</div>
-							<div>
-								<h3 className="font-bold text-gray-900 dark:text-white">
-									Chef Bot
-								</h3>
-								<p className="text-xs text-gray-500 dark:text-gray-400">
-									{isReady
-										? "Online"
-										: isAiLoading
-											? `Loading... ${aiProgress}%`
-											: "Offline"}
-								</p>
-							</div>
-						</div>
-						<div className="flex items-center gap-1">
-							<button
-								onClick={clearChat}
-								className="p-2 text-gray-400 hover:text-red-500"
-								title="Clear chat">
-								<Trash2 className="w-4 h-4" />
-							</button>
-							<button
-								onClick={() => setIsChatOpen(false)}
-								className="p-2 text-gray-400 hover:text-gray-600 lg:hidden">
-								<X className="w-5 h-5" />
-							</button>
-						</div>
-					</div>
+				{/* Chat Sidebar */}
+				{isChatOpen && (
+					<div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center">
+						{/* Backdrop */}
+						<div
+							className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+							onClick={() => setIsChatOpen(false)}
+						/>
 
-					{/* Chat Messages */}
-					<div
-						className="flex-grow overflow-y-auto p-4 bg-gray-50 dark:bg-gray-950 space-y-4"
-						ref={chatContainerRef}>
-						{!isReady && !isAiLoading && (
-							<div className="text-center py-8">
-								<button
-									onClick={loadModel}
-									className="bg-orange-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-orange-600 transition-colors">
-									Load Chef Bot
-								</button>
-								<p className="text-xs text-gray-500 mt-2 max-w-[200px] mx-auto">
-									Downloads ~1GB model to your browser. Requires WebGPU.
-								</p>
-							</div>
-						)}
-
-						{isAiLoading && (
-							<div className="flex flex-col items-center justify-center py-12 space-y-3">
-								<Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
-								<div className="w-48 h-2 bg-gray-200 rounded-full overflow-hidden">
-									<div
-										className="h-full bg-orange-500 transition-all duration-300"
-										style={{ width: `${aiProgress}%` }}></div>
+						{/* Modal */}
+						<aside
+							className={clsx(
+								"relative z-50 w-full sm:max-w-lg bg-white dark:bg-gray-900 shadow-2xl flex flex-col",
+								"rounded-2xl sm:rounded-2xl p-2",
+								"h-[90vh]",
+							)}>
+							{/* Header */}
+							<div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+								<div className="flex items-center gap-3">
+									<div className="w-9 h-9 bg-accent-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center text-accent-600">
+										<MessageSquare className="w-5 h-5" />
+									</div>
+									<div>
+										<h3 className="font-semibold text-gray-900 dark:text-white">
+											Chef Bot
+										</h3>
+										<p className="text-xs text-gray-500">
+											{isReady
+												? "Online"
+												: isAiLoading
+													? `Loading… ${aiProgress}%`
+													: "Offline"}
+										</p>
+									</div>
 								</div>
-								<p className="text-sm text-gray-500">
-									Initializing AI... {aiProgress}%
-								</p>
-							</div>
-						)}
 
-						{chatHistory.map((msg, idx) => (
+								<div className="flex items-center gap-2">
+									<button
+										onClick={clearChat}
+										className="p-2 rounded-lg text-black-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
+										<Trash2 className="w-4 h-4" />
+									</button>
+									<button
+										onClick={() => setIsChatOpen(false)}
+										className="p-2 rounded-lg text-black-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800">
+										<X className="w-5 h-5" />
+									</button>
+								</div>
+							</div>
+
+							{/* Messages */}
 							<div
-								key={idx}
-								className={clsx(
-									"flex w-full",
-									msg.role === "user" ? "justify-end" : "justify-start",
-								)}>
-								<div
-									className={clsx(
-										"max-w-[85%] p-3.5 rounded-2xl text-sm leading-relaxed prose",
-										msg.role === "user"
-											? "bg-gray-800 text-white rounded-tr-none"
-											: "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-tl-none shadow-sm",
-									)}>
-									{msg.content ? (
-										<div
-											dangerouslySetInnerHTML={{
-												__html: msg.content
-													.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-													.replace(/\n/g, "<br>"),
-											}}
-										/>
-									) : (
-										<span className="animate-pulse">...</span>
-									)}
-								</div>
-							</div>
-						))}
-					</div>
+								ref={chatContainerRef}
+								className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-950">
+								{!isReady && !isAiLoading && (
+									<div className="text-center py-10">
+										<button
+											onClick={loadModel}
+											className="bg-accent-500 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-accent-600">
+											Load Chef Bot
+										</button>
+										<p className="text-xs text-gray-500 mt-3 max-w-xs mx-auto">
+											Downloads ~1GB model to your browser. Requires WebGPU.
+										</p>
+									</div>
+								)}
 
-					{/* Chat Input */}
-					<div className="p-4 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
-						<form onSubmit={handleChatSubmit} className="relative">
-							<input
-								ref={chatInputRef}
-								type="text"
-								placeholder={isReady ? "Ask for recipes..." : "Load AI first"}
-								disabled={!isReady}
-								className="w-full pl-4 pr-12 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-orange-500 outline-none text-sm dark:text-white"
-							/>
-							<button
-								type="submit"
-								disabled={!isReady}
-								className="absolute right-2 top-2 p-1.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed">
-								<Send className="w-4 h-4" />
-							</button>
-						</form>
+								{isAiLoading && (
+									<div className="flex flex-col items-center py-12 space-y-4">
+										<Loader2 className="w-8 h-8 animate-spin text-accent-500" />
+										<div className="w-52 h-2 bg-gray-200 rounded-full overflow-hidden">
+											<div
+												className="h-full bg-accent-500 transition-all"
+												style={{ width: `${aiProgress}%` }}
+											/>
+										</div>
+										<p className="text-sm text-gray-500">
+											Initializing AI… {aiProgress}%
+										</p>
+									</div>
+								)}
+
+								{isReady && !isAiLoading && chatHistory.length === 0 && (
+									<div className="flex flex-col items-center justify-center h-full text-center px-6">
+										<div className="w-14 h-14 rounded-2xl bg-accent-100 dark:bg-orange-900/30 flex items-center justify-center text-accent-600 mb-4">
+											<MessageSquare className="w-7 h-7" />
+										</div>
+
+										<h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+											Chef Bot is ready
+										</h4>
+
+										<p className="text-sm text-gray-500 dark:text-gray-400 mt-2 max-w-xs">
+											Ask for recipes, meal ideas, or cooking tips based on what
+											you have at home.
+										</p>
+
+										<div className="mt-4 text-xs text-gray-400">
+											Try:{" "}
+											<span className="italic">
+												“What can I cook with chicken and rice?”
+											</span>
+										</div>
+									</div>
+								)}
+
+								{chatHistory.map((msg, idx) => (
+									<div
+										key={idx}
+										className={clsx(
+											"flex",
+											msg.role === "user" ? "justify-end" : "justify-start",
+										)}>
+										<div
+											className={clsx(
+												"max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed",
+												msg.role === "user"
+													? "bg-accent-500 text-white rounded-tr-none"
+													: "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-tl-none shadow-sm",
+											)}>
+											{msg.content ? (
+												<div
+													dangerouslySetInnerHTML={{
+														__html: msg.content
+															.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+															.replace(/\n/g, "<br />"),
+													}}
+												/>
+											) : (
+												<span className="animate-pulse">…</span>
+											)}
+										</div>
+									</div>
+								))}
+							</div>
+
+							{/* Input */}
+							<div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+								<form onSubmit={handleChatSubmit} className="relative">
+									<input
+										ref={chatInputRef}
+										disabled={!isReady}
+										placeholder={isReady ? "Ask for recipes…" : "Load AI first"}
+										className="w-full pl-4 pr-12 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-accent-500 outline-none text-sm"
+									/>
+									<button
+										type="submit"
+										disabled={!isReady}
+										className="absolute right-2 top-2 p-2 rounded-lg bg-accent-500 text-white hover:bg-accent-600 disabled:opacity-50">
+										<Send className="w-4 h-4" />
+									</button>
+								</form>
+							</div>
+						</aside>
 					</div>
-				</aside>
+				)}
 			</main>
 
 			{/* Share Modal */}
@@ -500,9 +565,44 @@ export default function ShoppingListApp() {
 				</div>
 			)}
 
+			{deleteModalIsOpen && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+					<div
+						className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+						onClick={() => setDeleteModalIsOpen(false)}></div>
+					<div className="relative bg-white dark:bg-gray-800 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-fade-in-up">
+						<div className="flex items-center justify-between mb-4">
+							<div>
+								<h2 className="text-lg font-bold text-gray-900 dark:text-white">
+									Do you want to clear all items?
+								</h2>
+								<p className="text-sm text-gray-500 dark:text-gray-400">
+									This action cannot be undone.
+								</p>
+							</div>
+						</div>
+
+						<div className="flex justify-end gap-2">
+							<button
+								type="button"
+								onClick={() => setDeleteModalIsOpen(false)}
+								className="px-3 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900">
+								Cancel
+							</button>
+							<button
+								type="button"
+								onClick={handleClearAll}
+								className="px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold rounded-lg transition-colors">
+								Clear All
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
 			{/* Toast */}
 			{toast && (
-				<div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-4 py-2 rounded-lg shadow-lg text-sm font-medium z-50 animate-slide-up">
+				<div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-accent-600 dark:bg-white text-white dark:text-gray-900 px-4 py-2 rounded-lg shadow-lg text-sm font-medium z-50 animate-slide-up">
 					{toast}
 				</div>
 			)}
