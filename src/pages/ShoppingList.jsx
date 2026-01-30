@@ -543,7 +543,7 @@ export default function ShoppingListApp() {
 									required
 									value={shareEmail}
 									onChange={(e) => setShareEmail(e.target.value)}
-									className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 outline-none dark:bg-gray-700 dark:text-white"
+									className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-accent-500 outline-none dark:bg-gray-700 dark:text-white"
 									placeholder="you@example.com"
 								/>
 							</div>
@@ -556,7 +556,7 @@ export default function ShoppingListApp() {
 								</button>
 								<button
 									type="submit"
-									className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition-colors">
+									className="px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold rounded-lg transition-colors">
 									Send
 								</button>
 							</div>
