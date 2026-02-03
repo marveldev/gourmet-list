@@ -6,9 +6,10 @@ import {
 } from "react-router-dom"
 import { AuthProvider } from "./contexts/AuthContext"
 import Landing from "./pages/Landing"
-import ShoppingList from "./pages/ShoppingList"
+import List from "./pages/List"
 import SignIn from "./pages/SignIn"
 import SignUp from "./pages/SignUp"
+import ShoppingList from "./pages/ShoppingList"
 
 function App() {
 	return (

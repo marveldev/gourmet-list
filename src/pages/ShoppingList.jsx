@@ -35,6 +35,7 @@ export default function ShoppingListApp() {
 		return localStorage.getItem("chef.theme") === "dark"
 	})
 	const [toast, setToast] = useState(null)
+	const [draggedItemId, setDraggedItemId] = useState(null)
 
 	// AI Hook
 	const {
@@ -121,6 +122,39 @@ export default function ShoppingListApp() {
 	const showToast = (msg) => {
 		setToast(msg)
 		setTimeout(() => setToast(null), 2000)
+	}
+
+	// Drag and Drop Handlers
+	const handleDragStart = (e, itemId) => {
+		setDraggedItemId(itemId)
+		e.dataTransfer.effectAllowed = "move"
+	}
+
+	const handleDragOver = (e) => {
+		e.preventDefault()
+		e.dataTransfer.dropEffect = "move"
+	}
+
+	const handleDrop = (e, targetItemId) => {
+		e.preventDefault()
+		if (!draggedItemId || draggedItemId === targetItemId) return
+
+		const draggedIndex = items.findIndex((item) => item.id === draggedItemId)
+		const targetIndex = items.findIndex((item) => item.id === targetItemId)
+
+		if (draggedIndex === -1 || targetIndex === -1) return
+
+		const newItems = [...items]
+		const [draggedItem] = newItems.splice(draggedIndex, 1)
+		newItems.splice(targetIndex, 0, draggedItem)
+
+		setItems(newItems)
+		setDraggedItemId(null)
+		showToast("Item reordered")
+	}
+
+	const handleDragEnd = () => {
+		setDraggedItemId(null)
 	}
 
 	// Chat Actions
@@ -276,10 +310,17 @@ export default function ShoppingListApp() {
 							filteredItems.map((item) => (
 								<div
 									key={item.id}
+									draggable={filter === "all"}
+									onDragStart={(e) => handleDragStart(e, item.id)}
+									onDragOver={handleDragOver}
+									onDrop={(e) => handleDrop(e, item.id)}
+									onDragEnd={handleDragEnd}
 									className={clsx(
-										"group flex items-center gap-3 p-3 py-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200",
+										"group flex items-center gap-3 p-3 py-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all",
+										filter === "all" && "cursor-move",
 										item.completed &&
 											"opacity-60 bg-gray-50 dark:bg-gray-800/50",
+										draggedItemId === item.id && "opacity-50",
 									)}>
 									<label className="relative flex items-center justify-center cursor-pointer p-1">
 										<input
@@ -324,20 +365,20 @@ export default function ShoppingListApp() {
 						)}
 					</div>
 
-					<div class="bg-white border-t border-gray-200 p-4">
-						<div class="mx-auto max-w-full sm:max-w-3xl lg:max-w-4xl">
-							<div class="flex justify-between items-start sm:items-center">
+					<div className="bg-white border-t border-gray-200 p-4">
+						<div className="mx-auto max-w-full sm:max-w-3xl lg:max-w-4xl">
+							<div className="flex justify-between items-start sm:items-center">
 								{/* Left stack */}
-								<div class="flex flex-col gap-3 sm:flex-row sm:gap-3">
+								<div className="flex flex-col gap-3 sm:flex-row sm:gap-3">
 									<button
 										onClick={smartSort}
-										class="text-sm font-medium text-gray-600 hover:text-accent-700 bg-gray-100 hover:bg-accent-50 px-4 py-2 rounded-lg transition-colors">
+										className="text-sm font-medium text-gray-600 hover:text-accent-700 bg-gray-100 hover:bg-accent-50 px-4 py-2 rounded-lg transition-colors">
 										Smart Sort
 									</button>
 
 									<button
 										onClick={clearCompleted}
-										class="text-sm font-medium text-gray-600 hover:text-teal-700 bg-gray-100 hover:bg-teal-50 px-4 py-2 rounded-lg transition-colors">
+										className="text-sm font-medium text-gray-600 hover:text-teal-700 bg-gray-100 hover:bg-teal-50 px-4 py-2 rounded-lg transition-colors">
 										Clear Completed
 									</button>
 								</div>
@@ -345,7 +386,7 @@ export default function ShoppingListApp() {
 								{/* Right button */}
 								<button
 									onClick={() => setDeleteModalIsOpen(true)}
-									class="text-sm font-medium text-red-500 bg-gray-100 hover:text-red-700 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors sm:ml-auto">
+									className="text-sm font-medium text-red-500 bg-gray-100 hover:text-red-700 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors sm:ml-auto">
 									Clear All
 								</button>
 							</div>
