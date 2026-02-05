@@ -11,20 +11,24 @@ import {
 	Loader2,
 	ShoppingBag,
 } from "lucide-react"
+import clsx from "clsx"
+import {
+	collection,
+	getDocs,
+	addDoc,
+	updateDoc,
+	doc,
+	deleteDoc,
+} from "firebase/firestore"
 import { useChefBot } from "../hooks/useChefBot"
 import Header from "../components/Header"
-import clsx from "clsx"
+import { db } from "../firebase"
+import { useAuth } from "../../src/contexts/AuthContext"
 
 export default function ShoppingListApp() {
 	// State
-	const [items, setItems] = useState(() => {
-		try {
-			const saved = localStorage.getItem("chef.list")
-			return saved ? JSON.parse(saved) : []
-		} catch {
-			return []
-		}
-	})
+	const { currentUser } = useAuth()
+	const [items, setItems] = useState([])
 	const [filter, setFilter] = useState("all")
 	const [inputValue, setInputValue] = useState("")
 	const [isChatOpen, setIsChatOpen] = useState(false)
@@ -36,6 +40,29 @@ export default function ShoppingListApp() {
 	})
 	const [toast, setToast] = useState(null)
 	const [draggedItemId, setDraggedItemId] = useState(null)
+
+	const usersCollectionRef = collection(
+		db,
+		"shoppingLists",
+		currentUser.uid,
+		"items",
+	)
+
+	useEffect(() => {
+		if (!currentUser) return
+
+		const getItems = async () => {
+			const snapshot = await getDocs(usersCollectionRef)
+			setItems(
+				snapshot.docs.map((doc) => ({
+					id: doc.id,
+					...doc.data(),
+				})),
+			)
+		}
+
+		getItems()
+	}, [currentUser])
 
 	// AI Hook
 	const {
@@ -73,41 +100,83 @@ export default function ShoppingListApp() {
 	}, [chatHistory, isChatOpen])
 
 	// Actions
-	const addItem = (e) => {
+	const addItem = async (e) => {
 		e.preventDefault()
 		if (!inputValue.trim()) return
 		const newItem = {
-			id: Date.now().toString(),
 			name: inputValue.trim(),
 			completed: false,
 			createdAt: Date.now(),
 		}
-		setItems([newItem, ...items])
+
+		const docRef = await addDoc(usersCollectionRef, newItem)
+
+		setItems([{ id: docRef.id, ...newItem }, ...items])
+
 		setInputValue("")
 		showToast(`Added ${newItem.name}`)
 	}
 
-	const toggleItem = (id) => {
-		setItems(
-			items.map((item) =>
-				item.id === id ? { ...item, completed: !item.completed } : item,
-			),
+	const toggleItem = async (id) => {
+		const item = items.find((i) => i.id === id)
+		if (!item) return
+
+		const itemDoc = doc(
+			db,
+			"shoppingLists",
+			currentUser.uid,
+			"items",
+			id, // ✅ dynamic
 		)
+
+		const updatedItem = { completed: !item.completed }
+
+		await updateDoc(itemDoc, {
+			completed: !item.completed,
+		})
+
+		setItems(items.map((i) => (i.id === id ? { ...i, ...updatedItem } : i)))
 	}
 
-	const deleteItem = (id) => {
+	const deleteItem = async (id) => {
+		await deleteDoc(doc(db, "shoppingLists", currentUser.uid, "items", id))
+
 		setItems(items.filter((item) => item.id !== id))
 	}
 
-	const clearCompleted = () => {
-		setItems(items.filter((item) => !item.completed))
+	const clearCompleted = async () => {
+		const completedItems = items.filter((item) => item.completed)
+
+		if (completedItems.length === 0) {
+			showToast("No completed items to clear")
+			return
+		}
+
+		await Promise.all(
+			completedItems.map((item) =>
+				deleteDoc(doc(db, "shoppingLists", currentUser.uid, "items", item.id)),
+			),
+		)
+
+		setItems((prev) => prev.filter((item) => !item.completed))
 		showToast("Cleared completed items")
 	}
 
-	const handleClearAll = () => {
+	const handleClearAll = async () => {
+		if (items.length === 0) {
+			setDeleteModalIsOpen(false)
+			return
+		}
+
+		await Promise.all(
+			items.map((item) =>
+				deleteDoc(doc(db, "shoppingLists", currentUser.uid, "items", item.id)),
+			),
+		)
+
 		setItems([])
-		showToast("Cleared all items")
 		setDeleteModalIsOpen(false)
+		showToast("Cleared all items")
 	}
 
 	const smartSort = () => {
@@ -165,7 +234,10 @@ export default function ShoppingListApp() {
 
 		chatInputRef.current.value = ""
 
-		const listContext = items.map((i) => i.name).join(", ")
+		const listContext = useMemo(
+			() => items.map((i) => i.name).join(", "),
+			[items],
+		)
 		const systemPrompt = `You are Chef Bot, a friendly and creative culinary expert. 
     The user has a shopping list containing: ${listContext || "nothing yet"}. 
     Suggest recipes or advice based on these ingredients if asked. 

@@ -3,8 +3,6 @@ import { db } from "../firebase"
 import { auth } from "../firebase"
 
 export function listenToItems(listId, callback) {
-	console.log(auth.currentUser?.uid)
-
 	return onSnapshot(
 		collection(db, "shoppingLists", listId, "items"),
 		(snapshot) => {
