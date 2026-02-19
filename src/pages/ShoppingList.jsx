@@ -14,15 +14,20 @@ import {
 import clsx from "clsx"
 import {
 	collection,
-	getDocs,
 	addDoc,
+	deleteDoc,
+	query,
+	where,
+	getDocs,
 	updateDoc,
 	doc,
-	deleteDoc,
+	setDoc,
+	arrayUnion,
 } from "firebase/firestore"
 import { useChefBot } from "../hooks/useChefBot"
 import Header from "../components/Header"
 import { db } from "../firebase"
+import SharedList from "../components/SharedList"
 import { useAuth } from "../../src/contexts/AuthContext"
 
 export default function ShoppingListApp() {
@@ -179,6 +184,44 @@ export default function ShoppingListApp() {
 		showToast("Cleared all items")
 	}
 
+	const shareListWithEmail = async (email) => {
+		// 1. Find user by email
+		const q = query(collection(db, "users"), where("email", "==", email))
+
+		console.log("Searching for email:", email)
+
+		const snapshot = await getDocs(q)
+		console.log(snapshot)
+
+		console.log(
+			"Matched users:",
+			snapshot.docs.map((d) => d.data()),
+		)
+
+		if (snapshot.empty) {
+			throw new Error("No registered user found with this email")
+		}
+
+		const targetUserId = snapshot.docs[0].id
+
+		// 2. Ensure shopping list doc exists
+		const listRef = doc(db, "shoppingLists", currentUser.uid)
+
+		await setDoc(
+			listRef,
+			{
+				ownerId: currentUser.uid,
+				sharedWith: [],
+			},
+			{ merge: true },
+		)
+
+		// 3. Grant access
+		await updateDoc(listRef, {
+			sharedWith: arrayUnion(targetUserId),
+		})
+	}
+
 	const smartSort = () => {
 		const sorted = [...items].sort((a, b) => {
 			if (a.completed !== b.completed) return a.completed ? 1 : -1
@@ -247,28 +290,25 @@ export default function ShoppingListApp() {
 		await generateResponse(text, systemPrompt)
 	}
 
-	const handleShare = (e) => {
+	const handleShare = async (e) => {
 		e.preventDefault()
-		const unpurchased = items.filter((i) => !i.completed)
-		if (!unpurchased.length) {
-			showToast("Add unpurchased items to share")
-			return
+
+		try {
+			await shareListWithEmail(shareEmail.trim().toLowerCase())
+
+			showToast("List shared successfully")
+			setIsShareModalOpen(false)
+			setShareEmail("")
+		} catch (err) {
+			showToast(err.message || "Unable to share list")
 		}
-		const listText = unpurchased.map((i) => `• ${i.name}`).join("\n")
-		const subject = encodeURIComponent("My GourmetList (unpurchased items)")
-		const body = encodeURIComponent(
-			`Here are my items to buy:\n\n${listText}\n\nShared from GourmetList`,
-		)
-		window.location.href = `mailto:${shareEmail}?subject=${subject}&body=${body}`
-		setIsShareModalOpen(false)
-		setShareEmail("")
-		showToast("Opening email app...")
 	}
 
 	// Filtered Items
 	const filteredItems = items.filter((item) => {
 		if (filter === "active") return !item.completed
 		if (filter === "completed") return item.completed
+		// if (filter === "shared") return item.completed
 		return true
 	})
 
@@ -357,7 +397,13 @@ export default function ShoppingListApp() {
 								Done
 							</button>
 							<button
-								className="tab-btn flex-1 py-3 text-sm font-semibold transition-all"
+								onClick={() => setFilter("shared")}
+								className={clsx(
+									"tab-btn flex-1 py-3 text-sm font-semibold transition-all",
+									filter === "shared"
+										? "bg-accent-500 text-white rounded-r-lg"
+										: "hover:bg-gray-100 dark:hover:bg-gray-800",
+								)}
 								data-tab="shared">
 								Shared
 							</button>
@@ -366,7 +412,16 @@ export default function ShoppingListApp() {
 
 					{/* List */}
 					<div className="flex-grow overflow-y-auto p-6 max-w-3xl mx-auto w-full space-y-2">
-						{filteredItems.length === 0 ? (
+						{filter === "shared" ? (
+							<SharedList
+								handleDragEnd={handleDragEnd}
+								handleDragStart={handleDragStart}
+								handleDragOver={handleDragOver}
+								handleDrop={handleDrop}
+								toggleItem={toggleItem}
+								deleteItem={deleteItem}
+							/>
+						) : filteredItems.length === 0 ? (
 							<div className="flex flex-col items-center justify-center py-12 text-center opacity-60">
 								<div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-full mb-4">
 									<ShoppingBag className="w-8 h-8 text-gray-400" />
@@ -631,13 +686,13 @@ export default function ShoppingListApp() {
 						className="absolute inset-0 bg-black/40 backdrop-blur-sm"
 						onClick={() => setIsShareModalOpen(false)}></div>
 					<div className="relative bg-white dark:bg-gray-800 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-fade-in-up">
-						<div className="flex items-center justify-between mb-4">
+						<div className="flex items-center justify-between mb-8">
 							<div>
 								<h2 className="text-lg font-bold text-gray-900 dark:text-white">
 									Share your list
 								</h2>
 								<p className="text-sm text-gray-500 dark:text-gray-400">
-									Send unpurchased items via email.
+									Grant access to another registered GourmetList user.
 								</p>
 							</div>
 							<button
@@ -670,7 +725,7 @@ export default function ShoppingListApp() {
 								<button
 									type="submit"
 									className="px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold rounded-lg transition-colors">
-									Send
+									Share access
 								</button>
 							</div>
 						</form>

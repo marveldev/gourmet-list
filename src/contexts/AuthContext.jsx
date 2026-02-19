@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react"
-import { auth } from "../firebase"
+import { auth, db } from "../firebase"
 import {
 	onAuthStateChanged,
 	signInWithEmailAndPassword,
@@ -9,6 +9,7 @@ import {
 	signInWithPopup,
 	sendPasswordResetEmail,
 } from "firebase/auth"
+import { doc, setDoc, serverTimestamp } from "firebase/firestore"
 
 const AuthContext = createContext()
 
@@ -19,6 +20,30 @@ export function useAuth() {
 export function AuthProvider({ children }) {
 	const [currentUser, setCurrentUser] = useState(null)
 	const [loading, setLoading] = useState(true)
+
+	// Create / update Firestore user profile
+	useEffect(() => {
+		if (!currentUser?.email) return
+
+		const createUserProfile = async () => {
+			try {
+				await setDoc(
+					doc(db, "users", currentUser.uid),
+					{
+						uid: currentUser.uid,
+						email: currentUser.email.toLowerCase(),
+						provider: currentUser.providerData?.[0]?.providerId || "password",
+						updatedAt: serverTimestamp(),
+					},
+					{ merge: true },
+				)
+			} catch (err) {
+				console.error("Failed to create user profile:", err)
+			}
+		}
+
+		createUserProfile()
+	}, [currentUser])
 
 	function signup(email, password) {
 		return createUserWithEmailAndPassword(auth, email, password)
