@@ -5,7 +5,7 @@ export default function Footer() {
 		<footer className="py-12 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 transition-colors">
 			<div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
 				<div className="flex items-center gap-2">
-					<div className="text-accent-600 w-6 h-6">
+					<div className="text-accent-600 w-6 h-6 dark:text-accent-300">
 						<ShoppingBag className="w-full h-full" />
 					</div>
 					<span className="font-bold text-gray-900 dark:text-white">

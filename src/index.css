@@ -63,3 +63,51 @@
   font-weight: 700;
   color: inherit;
 }
+
+/* Global dark-theme overrides — change `--gourmet-dark-surface` to try other darker tones */
+:root {
+  --gourmet-dark-surface: #071226; /* primary surface for cards/panels in dark mode */
+  --gourmet-dark-bg: #050812; /* overall page background in dark mode */
+  --gourmet-dark-border: rgba(255,255,255,0.06);
+  --gourmet-dark-muted: rgba(255,255,255,0.7);
+}
+
+html.dark, .dark body {
+  background-color: var(--gourmet-dark-bg);
+  color-scheme: dark;
+}
+
+/* Map common Tailwind dark utility classes to the custom dark surface */
+.dark .bg-white,
+.dark .bg-gray-50,
+.dark .bg-gray-100,
+.dark .bg-gray-800,
+.dark .bg-gray-900,
+.dark .bg-gray-950 {
+  background-color: var(--gourmet-dark-surface) !important;
+}
+
+.dark .border-gray-200,
+.dark .border-gray-100,
+.dark .border-gray-300,
+.dark .border-gray-700,
+.dark .border-gray-800,
+.dark .border-gray-600 {
+  border-color: var(--gourmet-dark-border) !important;
+}
+
+.dark .text-gray-900,
+.dark .text-black-900 {
+  color: #fff !important;
+}
+.dark .text-gray-700,
+.dark .text-gray-800 {
+  color: #e6eef7 !important;
+}
+.dark .text-gray-500 {
+  color: var(--gourmet-dark-muted) !important;
+}
+
+/* Dark scrollbar tweaks */
+.dark ::-webkit-scrollbar-thumb { background: #213142; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #35536a; }

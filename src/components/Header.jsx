@@ -1,4 +1,3 @@
-import React from "react"
 import { Link } from "react-router-dom"
 import { MessageSquare, Share2, Moon, Sun, ShoppingBag } from "lucide-react"
 
@@ -12,7 +11,7 @@ export default function Header({
 		<header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 h-16 flex-shrink-0 z-20 transition-colors">
 			<div className="h-full px-4 md:px-6 flex items-center justify-between max-w-7xl mx-auto w-full">
 				<Link to="/" className="flex items-center gap-2 group">
-					<div className="text-accent-600 w-6 h-6 group-hover:scale-110 transition-transform">
+					<div className="text-accent-600 w-6 h-6 group-hover:scale-110 transition-transform dark:text-accent-300">
 						<ShoppingBag className="w-full h-full" />
 					</div>
 					<span className="font-bold text-gray-900 dark:text-white group-hover:text-accent-600 transition-colors">

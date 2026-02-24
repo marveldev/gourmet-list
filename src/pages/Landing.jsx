@@ -1,36 +1,20 @@
-import React, { useEffect } from "react"
 import { Link } from "react-router-dom"
 import { useAuth } from "../contexts/AuthContext"
-import {
-	ShoppingBag,
-	Moon,
-	Sun,
-	Zap,
-	Lock,
-	EyeOff,
-	BrainCircuit,
-	ArrowRight,
-	Check,
-} from "lucide-react"
+import { ShoppingBag, Moon, Sun, ArrowRight, Check } from "lucide-react"
 import Footer from "../components/Footer"
+import { useTheme } from "../contexts/ThemeContext"
 
 export default function Landing() {
 	const { currentUser, logout } = useAuth()
-	const [isDark, setIsDark] = React.useState(false)
-
-	const toggleTheme = () => {
-		setIsDark(!isDark)
-		document.documentElement.classList.toggle("dark")
-	}
+	const { isDark, toggleTheme } = useTheme()
 
 	return (
-		<div
-			className={`min-h-screen flex flex-col ${isDark ? "dark bg-gray-900" : "bg-[#fcfbf9]"}`}>
+		<div className="min-h-screen flex flex-col bg-[#fcfbf9] dark:bg-gray-900">
 			{/* Nav */}
-			<nav className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-[#fcfbf9]/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800">
+			<nav className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-[#fcfbf9]/80 dark:bg-gray-900 backdrop-blur-md border-b border-gray-100 dark:border-gray-800">
 				<div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
 					<div className="flex items-center gap-2">
-						<div className="text-accent-600 w-8 h-8">
+						<div className="text-accent-600 w-8 h-8 dark:text-accent-300">
 							<ShoppingBag className="w-full h-full" />
 						</div>
 						<span className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
@@ -40,9 +24,9 @@ export default function Landing() {
 					<div className="flex md:gap-6 gap-2 items-center">
 						<button
 							onClick={toggleTheme}
-							className="inline-flex items-center justify-center w-10 h-10 rounded-full text-gray-700 bg-accent-700/10 hover:bg-accent-700/20 transition-colors">
+							className="inline-flex items-center justify-center w-10 h-10 rounded-full text-gray-700 dark:bg-[#723258e7] bg-accent-700/5 hover:bg-accent-700/20 transition-colors">
 							{isDark ? (
-								<Sun className="w-5 h-5 text-accent-700" />
+								<Sun className="w-5 h-5 text-accent-100" />
 							) : (
 								<Moon className="w-5 h-5 text-accent-700" />
 							)}
@@ -82,8 +66,8 @@ export default function Landing() {
 			{/* Hero */}
 			<section className="relative pt-28 pb-20 md:pt-48 md:pb-32 overflow-hidden flex-grow">
 				{/* Background Blobs */}
-				<div className="absolute top-0 right-0 w-[800px] h-[800px] bg-fuchsia-100/50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 z-0 pointer-events-none"></div>
-				<div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-fuchsia-100/50 rounded-full blur-3xl translate-y-1/3 -translate-x-1/3 z-0 pointer-events-none"></div>
+				<div className="dark:hidden absolute top-0 right-0 w-[800px] h-[800px] bg-fuchsia-100/50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 z-0 pointer-events-none"></div>
+				<div className="dark:hidden absolute bottom-0 left-0 w-[600px] h-[600px] bg-fuchsia-100/50 rounded-full blur-3xl translate-y-1/3 -translate-x-1/3 z-0 pointer-events-none"></div>
 
 				<div className="max-w-7xl mx-auto px-6 relative z-10">
 					<div className="flex flex-col lg:flex-row items-center gap-16">
@@ -131,7 +115,7 @@ export default function Landing() {
 										</span>
 									</div>
 									<div className="space-y-3">
-										<div className="bg-white p-4 rounded-xl shadow-sm flex items-center gap-3 border-l-4 border-fuchsia-500">
+										<div className="dark:bg-gray-800 bg-[#fff] p-4 rounded-xl shadow-sm flex items-center gap-3 border-l-4 border-fuchsia-500">
 											<div className="w-6 h-6 rounded-full border-2 border-fuchsia-500 flex items-center justify-center bg-fuchsia-500 text-white">
 												<Check className="w-3 h-3" />
 											</div>
@@ -141,7 +125,7 @@ export default function Landing() {
 												</span>
 											</div>
 										</div>
-										<div className="bg-white p-4 rounded-xl shadow-sm flex items-center gap-3 border-l-4 border-orange-400">
+										<div className="dark:bg-gray-800 bg-[#fff] p-4 rounded-xl shadow-sm flex items-center gap-3 border-l-4 border-orange-400">
 											<div className="w-6 h-6 rounded-full border-2 border-gray-200"></div>
 											<div className="flex-1">
 												<span className="text-gray-800 font-medium">
@@ -208,7 +192,7 @@ export default function Landing() {
 							<h2 className="text-4xl font-bold mt-2 mb-6 text-gray-900">
 								Keep shopping in sync.
 							</h2>
-							<p className="text-lg text-gray-600 mb-8">
+							<p className="dark:text-gray-400 text-lg text-gray-600 mb-8">
 								We use advanced browser technologies to keep your data local and
 								secure. AI runs on your device, not a server.
 							</p>

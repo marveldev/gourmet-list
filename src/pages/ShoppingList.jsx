@@ -26,6 +26,7 @@ import {
 } from "firebase/firestore"
 import { useChefBot } from "../hooks/useChefBot"
 import Header from "../components/Header"
+import { useTheme } from "../contexts/ThemeContext"
 import { db } from "../firebase"
 import SharedList from "../components/SharedList"
 import { useAuth } from "../../src/contexts/AuthContext"
@@ -40,9 +41,7 @@ export default function ShoppingListApp() {
 	const [isShareModalOpen, setIsShareModalOpen] = useState(false)
 	const [deleteModalIsOpen, setDeleteModalIsOpen] = useState(false)
 	const [shareEmail, setShareEmail] = useState("")
-	const [isDark, setIsDark] = useState(() => {
-		return localStorage.getItem("chef.theme") === "dark"
-	})
+	const { isDark, toggleTheme } = useTheme()
 	const [toast, setToast] = useState(null)
 	const [draggedItemId, setDraggedItemId] = useState(null)
 
@@ -88,15 +87,7 @@ export default function ShoppingListApp() {
 		localStorage.setItem("chef.list", JSON.stringify(items))
 	}, [items])
 
-	useEffect(() => {
-		if (isDark) {
-			document.documentElement.classList.add("dark")
-			localStorage.setItem("chef.theme", "dark")
-		} else {
-			document.documentElement.classList.remove("dark")
-			localStorage.setItem("chef.theme", "light")
-		}
-	}, [isDark])
+	// theme is handled globally by ThemeProvider
 
 	useEffect(() => {
 		if (chatContainerRef.current) {
@@ -319,7 +310,7 @@ export default function ShoppingListApp() {
 	return (
 		<div className="flex flex-col h-screen overflow-hidden bg-[#f4f7f5] dark:bg-gray-900 transition-colors">
 			<Header
-				toggleTheme={() => setIsDark(!isDark)}
+				toggleTheme={toggleTheme}
 				isDark={isDark}
 				openShare={() => setIsShareModalOpen(true)}
 				openChefBot={() => setIsChatOpen(true)}
@@ -443,10 +434,10 @@ export default function ShoppingListApp() {
 									onDrop={(e) => handleDrop(e, item.id)}
 									onDragEnd={handleDragEnd}
 									className={clsx(
-										"group flex items-center gap-3 p-3 py-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all",
+										"group flex items-center gap-3 p-3 py-4 bg-[#fff] dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all",
 										filter === "all" && "cursor-move",
 										item.completed &&
-											"opacity-60 bg-gray-50 dark:bg-gray-800/50",
+											"opacity-60 bg-[#F9FAFB] dark:bg-gray-800/50",
 										draggedItemId === item.id && "opacity-50",
 									)}>
 									<label className="relative flex items-center justify-center cursor-pointer p-1">
@@ -499,13 +490,13 @@ export default function ShoppingListApp() {
 								<div className="flex flex-col gap-3 sm:flex-row sm:gap-3">
 									<button
 										onClick={smartSort}
-										className="text-sm font-medium text-gray-600 hover:text-accent-700 bg-gray-100 hover:bg-accent-50 px-4 py-2 rounded-lg transition-colors">
+										className="text-sm font-medium dark:text-gray-50 dark:bg-gray-800 dark:hover:text-accent-300 text-gray-600 bg-[#F3F4F6] hover:text-accent-700 hover:bg-accent-50 px-4 py-2 rounded-lg transition-colors">
 										Smart Sort
 									</button>
 
 									<button
 										onClick={clearCompleted}
-										className="text-sm font-medium text-gray-600 hover:text-teal-700 bg-gray-100 hover:bg-teal-50 px-4 py-2 rounded-lg transition-colors">
+										className="text-sm font-medium dark:text-gray-50 dark:bg-gray-800 dark:hover:text-teal-300 text-gray-600 hover:text-teal-700 bg-[#F3F4F6] hover:bg-teal-50 px-4 py-2 rounded-lg transition-colors">
 										Clear Completed
 									</button>
 								</div>
@@ -513,7 +504,7 @@ export default function ShoppingListApp() {
 								{/* Right button */}
 								<button
 									onClick={() => setDeleteModalIsOpen(true)}
-									className="text-sm font-medium text-red-500 bg-gray-100 hover:text-red-700 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors sm:ml-auto">
+									className="text-sm font-medium dark:text-red-400 text-red-500 bg-gray-100 hover:text-red-700 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors sm:ml-auto">
 									Clear All
 								</button>
 							</div>
@@ -565,7 +556,7 @@ export default function ShoppingListApp() {
 									</button>
 									<button
 										onClick={() => setIsChatOpen(false)}
-										className="p-2 rounded-lg text-black-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800">
+										className="p-2 rounded-lg text-black-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-100">
 										<X className="w-5 h-5" />
 									</button>
 								</div>
