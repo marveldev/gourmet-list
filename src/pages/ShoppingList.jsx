@@ -23,6 +23,8 @@ import {
 	doc,
 	setDoc,
 	arrayUnion,
+	arrayRemove,
+	getDoc,
 } from "firebase/firestore"
 import { useChefBot } from "../hooks/useChefBot"
 import Header from "../components/Header"
@@ -44,6 +46,7 @@ export default function ShoppingListApp() {
 	const { isDark, toggleTheme } = useTheme()
 	const [toast, setToast] = useState(null)
 	const [draggedItemId, setDraggedItemId] = useState(null)
+	const [sharedUsers, setSharedUsers] = useState([])
 
 	const usersCollectionRef = collection(
 		db,
@@ -94,6 +97,52 @@ export default function ShoppingListApp() {
 			chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
 		}
 	}, [chatHistory, isChatOpen])
+
+	const fetchSharedUsers = async () => {
+		try {
+			const listRef = doc(db, "shoppingLists", currentUser.uid)
+			const listSnap = await getDoc(listRef)
+
+			if (!listSnap.exists()) return
+
+			const sharedWith = listSnap.data().sharedWith || []
+
+			const users = await Promise.all(
+				sharedWith.map(async (uid) => {
+					const userSnap = await getDoc(doc(db, "users", uid))
+					return userSnap.exists()
+						? { uid, email: userSnap.data().email }
+						: null
+				}),
+			)
+
+			setSharedUsers(users.filter(Boolean))
+		} catch (err) {
+			console.error("Failed to fetch shared users:", err)
+		}
+	}
+
+	useEffect(() => {
+		if (isShareModalOpen && currentUser) {
+			fetchSharedUsers()
+		}
+	}, [isShareModalOpen, currentUser])
+
+	const removeAccess = async (uid) => {
+		try {
+			const listRef = doc(db, "shoppingLists", currentUser.uid)
+
+			await updateDoc(listRef, {
+				sharedWith: arrayRemove(uid),
+			})
+
+			setSharedUsers((prev) => prev.filter((u) => u.uid !== uid))
+
+			showToast("Access removed")
+		} catch (err) {
+			console.error("Failed to remove access:", err)
+		}
+	}
 
 	// Actions
 	const addItem = async (e) => {
@@ -178,16 +227,7 @@ export default function ShoppingListApp() {
 	const shareListWithEmail = async (email) => {
 		// 1. Find user by email
 		const q = query(collection(db, "users"), where("email", "==", email))
-
-		console.log("Searching for email:", email)
-
 		const snapshot = await getDocs(q)
-		console.log(snapshot)
-
-		console.log(
-			"Matched users:",
-			snapshot.docs.map((d) => d.data()),
-		)
 
 		if (snapshot.empty) {
 			throw new Error("No registered user found with this email")
@@ -197,6 +237,10 @@ export default function ShoppingListApp() {
 
 		// 2. Ensure shopping list doc exists
 		const listRef = doc(db, "shoppingLists", currentUser.uid)
+
+		if (sharedUsers.some((u) => u.uid === targetUserId)) {
+			throw new Error("User already has access")
+		}
 
 		await setDoc(
 			listRef,
@@ -692,6 +736,33 @@ export default function ShoppingListApp() {
 								<X className="w-5 h-5 dark:text-white" />
 							</button>
 						</div>
+
+						{sharedUsers.length > 0 && (
+							<div className="mb-6">
+								<h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+									Already Shared With
+								</h3>
+
+								<div className="space-y-2">
+									{sharedUsers.map((user) => (
+										<div
+											key={user.uid}
+											className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded-lg">
+											<span className="text-sm text-gray-800 dark:text-gray-200">
+												{user.email}
+											</span>
+
+											<button
+												onClick={() => removeAccess(user.uid)}
+												className="text-xs text-red-500 hover:text-red-700 font-medium">
+												Remove
+											</button>
+										</div>
+									))}
+								</div>
+							</div>
+						)}
+
 						<form onSubmit={handleShare} className="space-y-4">
 							<div>
 								<label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
