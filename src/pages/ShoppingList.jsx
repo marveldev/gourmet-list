@@ -747,7 +747,7 @@ export default function ShoppingListApp() {
 									{sharedUsers.map((user) => (
 										<div
 											key={user.uid}
-											className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded-lg">
+											className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 px-3 py-4 rounded-lg">
 											<span className="text-sm text-gray-800 dark:text-gray-200">
 												{user.email}
 											</span>
