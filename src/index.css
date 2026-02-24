@@ -3,78 +3,85 @@
 @tailwind utilities;
 
 @layer base {
-  body {
-    @apply font-sans;
-  }
+	body {
+		@apply font-sans;
+	}
 }
 
 @layer components {
-  .btn-primary {
-    @apply bg-gradient-to-r from-accent-600 to-accent-700 text-white px-8 py-4 rounded-full font-bold shadow-lg hover:from-accent-700 hover:to-[#421d34] hover:shadow-xl hover:-translate-y-1 transition-all duration-300;
-  }
-  .btn-outline {
-    @apply border-2 border-accent-600 text-accent-700 px-8 py-4 rounded-full font-bold hover:bg-accent-50 transition-all duration-300;
-  }
-  .btn-icon {
-    @apply p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-200;
-  }
-  .hero-text {
-    @apply text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900 leading-tight;
-  }
-  .filter-btn {
-    @apply px-3 py-1 rounded-lg text-sm font-medium transition-colors;
-  }
-  .filter-btn.active {
-    @apply bg-orange-500 text-white;
-  }
-  .filter-btn.inactive {
-    @apply text-gray-600 hover:bg-gray-200;
-  }
+	.btn-primary {
+		@apply bg-gradient-to-r from-accent-600 to-accent-700 text-white px-8 py-4 rounded-full font-bold shadow-lg hover:from-accent-700 hover:to-[#421d34] hover:shadow-xl hover:-translate-y-1 transition-all duration-300;
+	}
+	.btn-outline {
+		@apply border-2 border-accent-600 text-accent-700 px-8 py-4 rounded-full font-bold hover:bg-accent-50 transition-all duration-300;
+	}
+	.btn-icon {
+		@apply p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-200;
+	}
+	.hero-text {
+		@apply text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900 leading-tight;
+	}
+	.filter-btn {
+		@apply px-3 py-1 rounded-lg text-sm font-medium transition-colors;
+	}
+	.filter-btn.active {
+		@apply bg-orange-500 text-white;
+	}
+	.filter-btn.inactive {
+		@apply text-gray-600 hover:bg-gray-200;
+	}
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+	width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+	background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 10px;
+	background: #cbd5e1;
+	border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+	background: #94a3b8;
 }
 
 /* Checkbox Animation */
 .item-checkbox:checked + div svg {
-  animation: checkPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+	animation: checkPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 @keyframes checkPop {
-  0% { transform: scale(0); }
-  80% { transform: scale(1.2); }
-  100% { transform: scale(1); }
+	0% {
+		transform: scale(0);
+	}
+	80% {
+		transform: scale(1.2);
+	}
+	100% {
+		transform: scale(1);
+	}
 }
 
 /* Markdown styling for chat */
 .prose strong {
-  font-weight: 700;
-  color: inherit;
+	font-weight: 700;
+	color: inherit;
 }
 
 /* Global dark-theme overrides — change `--gourmet-dark-surface` to try other darker tones */
 :root {
-  --gourmet-dark-surface: #071226; /* primary surface for cards/panels in dark mode */
-  --gourmet-dark-bg: #050812; /* overall page background in dark mode */
-  --gourmet-dark-border: rgba(255,255,255,0.06);
-  --gourmet-dark-muted: rgba(255,255,255,0.7);
+	--gourmet-dark-surface: #071226; /* primary surface for cards/panels in dark mode */
+	--gourmet-dark-bg: #050812; /* overall page background in dark mode */
+	--gourmet-dark-border: rgba(255, 255, 255, 0.06);
+	--gourmet-dark-muted: rgba(255, 255, 255, 0.7);
 }
 
-html.dark, .dark body {
-  background-color: var(--gourmet-dark-bg);
-  color-scheme: dark;
+html.dark,
+.dark body {
+	background-color: var(--gourmet-dark-bg);
+	color-scheme: dark;
 }
 
 /* Map common Tailwind dark utility classes to the custom dark surface */
@@ -84,7 +91,7 @@ html.dark, .dark body {
 .dark .bg-gray-800,
 .dark .bg-gray-900,
 .dark .bg-gray-950 {
-  background-color: var(--gourmet-dark-surface) !important;
+	background-color: var(--gourmet-dark-surface) !important;
 }
 
 .dark .border-gray-200,
@@ -93,21 +100,25 @@ html.dark, .dark body {
 .dark .border-gray-700,
 .dark .border-gray-800,
 .dark .border-gray-600 {
-  border-color: var(--gourmet-dark-border) !important;
+	border-color: var(--gourmet-dark-border) !important;
 }
 
 .dark .text-gray-900,
 .dark .text-black-900 {
-  color: #fff !important;
+	color: #fff !important;
 }
 .dark .text-gray-700,
 .dark .text-gray-800 {
-  color: #e6eef7 !important;
+	color: #e6eef7 !important;
 }
 .dark .text-gray-500 {
-  color: var(--gourmet-dark-muted) !important;
+	color: var(--gourmet-dark-muted) !important;
 }
 
 /* Dark scrollbar tweaks */
-.dark ::-webkit-scrollbar-thumb { background: #213142; }
-.dark ::-webkit-scrollbar-thumb:hover { background: #35536a; }
+.dark ::-webkit-scrollbar-thumb {
+	background: #213142;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+	background: #35536a;
+}
