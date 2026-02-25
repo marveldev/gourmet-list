@@ -389,7 +389,7 @@ export default function ShoppingListApp() {
 								{completedCount}/{items.length} done
 							</span>
 						</div>
-						<div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+						<div className="h-2 dark:bg-gray-700 bg-gray-200 rounded-full overflow-hidden">
 							<div
 								id="progress-fill"
 								className="h-full bg-accent-500 transition-all duration-500 ease-out"

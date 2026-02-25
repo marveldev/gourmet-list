@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom"
 import { useAuth } from "../contexts/AuthContext"
-import { ShoppingBag, Moon, Sun, ArrowRight, Check } from "lucide-react"
+import { ArrowRight, Check } from "lucide-react"
 import Footer from "../components/Footer"
 import { useTheme } from "../contexts/ThemeContext"
+import Navbar from "../components/NavBar"
 
 export default function Landing() {
 	const { currentUser, logout } = useAuth()
@@ -10,58 +11,12 @@ export default function Landing() {
 
 	return (
 		<div className="min-h-screen flex flex-col bg-[#fcfbf9] dark:bg-gray-900">
-			{/* Nav */}
-			<nav className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-[#fcfbf9]/80 dark:bg-gray-900 backdrop-blur-md border-b border-gray-100 dark:border-gray-800">
-				<div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-					<div className="flex items-center gap-2">
-						<div className="text-accent-600 w-8 h-8 dark:text-accent-300">
-							<ShoppingBag className="w-full h-full" />
-						</div>
-						<span className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
-							GourmetList
-						</span>
-					</div>
-					<div className="flex md:gap-6 gap-2 items-center">
-						<button
-							onClick={toggleTheme}
-							className="inline-flex items-center justify-center w-10 h-10 rounded-full text-gray-700 dark:bg-[#723258e7] bg-accent-700/5 hover:bg-accent-700/20 transition-colors">
-							{isDark ? (
-								<Sun className="w-5 h-5 text-accent-100" />
-							) : (
-								<Moon className="w-5 h-5 text-accent-700" />
-							)}
-						</button>
-
-						{!currentUser ? (
-							<>
-								<Link
-									to="/signin"
-									className="hidden md:block px-4 py-2.5 rounded-full text-sm font-semibold text-white bg-gradient-to-r from-accent-600 to-accent-700 shadow-md hover:shadow-lg transition-all">
-									Sign In
-								</Link>
-								<Link
-									to="/signup"
-									className="hidden md:block px-4 py-2.5 rounded-full text-sm font-semibold text-accent-700 border-2 border-accent-600 hover:bg-accent-50 transition-all">
-									Create Account
-								</Link>
-							</>
-						) : (
-							<>
-								<Link
-									to="/shopping-list"
-									className="bg-fuchsia-600 text-white px-5 py-2.5 rounded-full font-medium text-sm hover:bg-fuchsia-700 transition-colors shadow-lg shadow-fuchsia-900/20">
-									Launch App
-								</Link>
-								<button
-									onClick={logout}
-									className="hidden md:block text-sm font-semibold text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white">
-									Sign Out
-								</button>
-							</>
-						)}
-					</div>
-				</div>
-			</nav>
+			<Navbar
+				currentUser={currentUser}
+				toggleTheme={toggleTheme}
+				isDark={isDark}
+				logout={logout}
+			/>
 
 			{/* Hero */}
 			<section className="relative pt-28 pb-20 md:pt-48 md:pb-32 overflow-hidden flex-grow">
