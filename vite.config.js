@@ -22,12 +22,12 @@ export default defineConfig({
 				scope: "/gourmetlist-smart-shopping-chef-bot/",
 				icons: [
 					{
-						src: "/gourmetlist-smart-shopping-chef-bot/icon-192x192.png",
+						src: "icon-192x192.png",
 						sizes: "192x192",
 						type: "image/png",
 					},
 					{
-						src: "/gourmetlist-smart-shopping-chef-bot/icon-512x512.png",
+						src: "icon-512x512.png",
 						sizes: "512x512",
 						type: "image/png",
 					},
