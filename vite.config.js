@@ -8,6 +8,8 @@ export default defineConfig({
 		react(),
 		VitePWA({
 			registerType: "autoUpdate",
+			// 🔥 THIS FIXES "No manifest detected"
+			base: "/gourmetlist-smart-shopping-chef-bot/",
 			workbox: {
 				maximumFileSizeToCacheInBytes: 6 * 1024 * 1024, // safety limit
 			},
