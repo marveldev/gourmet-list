@@ -3,13 +3,13 @@ import react from "@vitejs/plugin-react"
 import { VitePWA } from "vite-plugin-pwa"
 
 export default defineConfig({
-	base: "/gourmetlist-smart-shopping-chef-bot/",
+	base: "/",
 	plugins: [
 		react(),
 		VitePWA({
 			registerType: "autoUpdate",
 			// 🔥 THIS FIXES "No manifest detected"
-			base: "/gourmetlist-smart-shopping-chef-bot/",
+			base: "/",
 			workbox: {
 				maximumFileSizeToCacheInBytes: 6 * 1024 * 1024, // safety limit
 			},
@@ -20,8 +20,8 @@ export default defineConfig({
 				theme_color: "#f97316",
 				background_color: "#f4f7f5",
 				display: "standalone",
-				start_url: "/gourmetlist-smart-shopping-chef-bot/",
-				scope: "/gourmetlist-smart-shopping-chef-bot/",
+				start_url: "/",
+				scope: "/",
 				icons: [
 					{
 						src: "icon-192x192.png",
