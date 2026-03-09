@@ -5,31 +5,26 @@ import {
 	query,
 	where,
 	getDocs,
-	doc,
 	getDoc,
+	doc,
 	updateDoc,
 	deleteDoc,
+	writeBatch,
 } from "firebase/firestore"
-import { Trash2, Check } from "lucide-react"
+import { Trash2, Check, X } from "lucide-react"
 import clsx from "clsx"
 import { db } from "../firebase"
 import { useAuth } from "../contexts/AuthContext"
 
-export default function SharedListItems({
-	filter,
-	draggedItemId,
-	handleDragStart,
-	handleDragOver,
-	handleDrop,
-	handleDragEnd,
-	toggleItem,
-	deleteItem,
-}) {
+export default function SharedListItems() {
 	const { currentUser } = useAuth()
 
 	const [items, setItems] = useState([])
 	const [userMap, setUserMap] = useState({})
 	const [loading, setLoading] = useState(true)
+	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+	const [deletingItem, setDeletingItem] = useState(null)
+	const [isMoving, setIsMoving] = useState(false)
 
 	useEffect(() => {
 		if (!currentUser) return
@@ -131,87 +126,173 @@ export default function SharedListItems({
 		}
 	}
 
-	const deleteSharedItem = async (item) => {
+	// copy all shared items into the current user's personal list
+	const moveAllToMyList = async () => {
+		if (!currentUser) return
+		setIsMoving(true)
 		try {
-			const itemRef = doc(db, "shoppingLists", item.ownerId, "items", item.id)
-
-			await deleteDoc(itemRef)
-
-			setItems((prev) =>
-				prev.filter((i) => !(i.id === item.id && i.ownerId === item.ownerId)),
+			// fetch existing item names from user's list to avoid duplicates
+			const destSnap = await getDocs(
+				collection(db, "shoppingLists", currentUser.uid, "items"),
 			)
+			const existingNames = new Set(destSnap.docs.map((d) => d.data().name))
+
+			const batch = writeBatch(db)
+			items.forEach((item) => {
+				if (!existingNames.has(item.name)) {
+					const newRef = doc(
+						collection(db, "shoppingLists", currentUser.uid, "items"),
+					)
+					batch.set(newRef, {
+						name: item.name,
+						completed: item.completed || false,
+					})
+				}
+			})
+			await batch.commit()
+		} catch (err) {
+			console.error("Failed to move shared items:", err)
+		} finally {
+			setIsMoving(false)
+		}
+	}
+
+	const openDeleteModalShared = (item) => {
+		// prevent outside click toggling completion
+		setDeletingItem(item)
+		setIsDeleteModalOpen(true)
+	}
+
+	const deleteSharedItem = async () => {
+		if (!deletingItem) return
+		try {
+			const itemRef = doc(
+				db,
+				"shoppingLists",
+				deletingItem.ownerId,
+				"items",
+				deletingItem.id,
+			)
+			await deleteDoc(itemRef)
+			setItems((prev) =>
+				prev.filter(
+					(i) =>
+						!(i.id === deletingItem.id && i.ownerId === deletingItem.ownerId),
+				),
+			)
+			setIsDeleteModalOpen(false)
+			setDeletingItem(null)
 		} catch (err) {
 			console.error("Failed to delete shared item:", err)
 		}
 	}
 
 	return (
-		<div className="space-y-2">
-			{items.map((item) => {
-				const isOwner = item.ownerId === currentUser.uid
+		<>
+			<div className="flex justify-end mb-4">
+				<button
+					onClick={moveAllToMyList}
+					disabled={isMoving}
+					className="px-4 py-2 bg-accent-500 text-white rounded-lg disabled:opacity-50">
+					{isMoving ? "Moving…" : "Move All To My List"}
+				</button>
+			</div>
 
-				return (
-					<div
-						key={item.id}
-						draggable={false}
-						onDragStart={(e) => handleDragStart(e, item.id)}
-						onDragOver={handleDragOver}
-						onDrop={(e) => handleDrop(e, item.id)}
-						onDragEnd={handleDragEnd}
-						className={clsx(
-							"group flex items-center gap-3 p-3 py-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all",
-							filter === "all" && "cursor-move",
-							item.completed && "opacity-60 bg-gray-50 dark:bg-gray-800/50",
-							draggedItemId === item.id && "opacity-50",
-						)}>
-						<label className="relative flex items-center justify-center cursor-pointer p-1">
-							<input
-								type="checkbox"
-								className="peer sr-only item-checkbox"
-								checked={item.completed}
-								onChange={() => toggleSharedItem(item)}
-							/>
-							<div
+			<div className="space-y-2">
+				{items.map((item) => (
+					<div key={item.id} className="relative overflow-hidden">
+						{/* Item */}
+						<div
+							onClick={() => toggleSharedItem(item)}
+							className={clsx(
+								"group flex items-center gap-3 p-3 py-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all cursor-pointer",
+								item.completed && "opacity-60 bg-gray-50 dark:bg-gray-800/50",
+							)}>
+							{item.completed && <Check className="w-5 h-5 text-accent-600" />}
+							<span
 								className={clsx(
-									"w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors",
+									"flex-grow font-medium transition-all",
 									item.completed
-										? "bg-accent-600 border-accent-600"
-										: "border-gray-300 dark:border-gray-600 hover:border-accent-500",
+										? "line-through text-gray-400"
+										: "text-gray-700 dark:text-gray-200",
 								)}>
-								{item.completed && (
-									<Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
-								)}
-							</div>
-						</label>
-						<span
-							className={clsx(
-								"flex-grow font-medium transition-all",
-								item.completed
-									? "line-through text-gray-400"
-									: "text-gray-700 dark:text-gray-200",
-							)}>
-							{item.name}
-						</span>
-						<span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-							(from{" "}
-							{item.ownerId === currentUser.uid
-								? "You"
-								: userMap[item.ownerId] || "Loading…"}
-							)
-						</span>
-						<button
-							onClick={() => deleteSharedItem(item)}
-							className={clsx(
-								"p-1.5 rounded-lg transition-all",
-								isOwner
-									? "opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500"
-									: "opacity-30 cursor-not-allowed",
-							)}>
-							<Trash2 className="w-4 h-4" />
-						</button>
+								{item.name}
+							</span>
+							<span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+								(from{" "}
+								{item.ownerId === currentUser.uid
+									? "You"
+									: userMap[item.ownerId] || "Loading…"}
+								)
+							</span>
+							<button
+								onClick={(e) => {
+									e.stopPropagation()
+									openDeleteModalShared(item)
+								}}
+								className="p-2 text-red-500 hover:text-red-600 transition-colors">
+								<Trash2 className="w-4 h-4" />
+							</button>
+						</div>
 					</div>
-				)
-			})}
-		</div>
+				))}
+
+				{/* Delete Confirmation Modal */}
+				{isDeleteModalOpen && deletingItem && (
+					<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+						<div
+							className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+							onClick={() => {
+								setIsDeleteModalOpen(false)
+								setDeletingItem(null)
+							}}></div>
+						<div className="relative bg-white dark:bg-gray-800 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-fade-in-up">
+							<div className="flex items-center justify-between mb-6">
+								<div>
+									<h2 className="text-lg font-bold text-gray-900 dark:text-white">
+										Delete Item
+									</h2>
+									<p className="text-sm text-gray-500 dark:text-gray-400">
+										Are you sure you want to delete this item?
+									</p>
+								</div>
+								<button
+									onClick={() => {
+										setIsDeleteModalOpen(false)
+										setDeletingItem(null)
+									}}
+									className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+									<X className="w-5 h-5 dark:text-white" />
+								</button>
+							</div>
+
+							<div className="mb-6 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+								<p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+									"{deletingItem.name}"
+								</p>
+							</div>
+
+							<div className="flex justify-end gap-2">
+								<button
+									type="button"
+									onClick={() => {
+										setIsDeleteModalOpen(false)
+										setDeletingItem(null)
+									}}
+									className="px-3 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900">
+									Cancel
+								</button>
+								<button
+									type="button"
+									onClick={deleteSharedItem}
+									className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-lg transition-colors">
+									Confirm Delete
+								</button>
+							</div>
+						</div>
+					</div>
+				)}
+			</div>
+		</>
 	)
 }

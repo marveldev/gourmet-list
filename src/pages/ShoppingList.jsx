@@ -10,6 +10,7 @@ import {
 	AlertCircle,
 	Loader2,
 	ShoppingBag,
+	Edit,
 } from "lucide-react"
 import clsx from "clsx"
 import {
@@ -32,6 +33,7 @@ import { useTheme } from "../contexts/ThemeContext"
 import { db } from "../firebase"
 import SharedList from "../components/SharedList"
 import { useAuth } from "../../src/contexts/AuthContext"
+import { listenToItems } from "../services/list.services"
 
 export default function ShoppingListApp() {
 	// State
@@ -45,8 +47,13 @@ export default function ShoppingListApp() {
 	const [shareEmail, setShareEmail] = useState("")
 	const { isDark, toggleTheme } = useTheme()
 	const [toast, setToast] = useState(null)
-	const [draggedItemId, setDraggedItemId] = useState(null)
 	const [sharedUsers, setSharedUsers] = useState([])
+	const [swipedItemId, setSwipedItemId] = useState(null)
+	const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+	const [editingItem, setEditingItem] = useState(null)
+	const [editValue, setEditValue] = useState("")
+	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+	const [deletingItem, setDeletingItem] = useState(null)
 
 	const usersCollectionRef = collection(
 		db,
@@ -58,17 +65,11 @@ export default function ShoppingListApp() {
 	useEffect(() => {
 		if (!currentUser) return
 
-		const getItems = async () => {
-			const snapshot = await getDocs(usersCollectionRef)
-			setItems(
-				snapshot.docs.map((doc) => ({
-					id: doc.id,
-					...doc.data(),
-				})),
-			)
-		}
+		const unsubscribe = listenToItems(currentUser.uid, (items) => {
+			setItems(items)
+		})
 
-		getItems()
+		return unsubscribe
 	}, [currentUser])
 
 	// AI Hook
@@ -185,8 +186,62 @@ export default function ShoppingListApp() {
 
 	const deleteItem = async (id) => {
 		await deleteDoc(doc(db, "shoppingLists", currentUser.uid, "items", id))
-
 		setItems(items.filter((item) => item.id !== id))
+		setIsDeleteModalOpen(false)
+		setDeletingItem(null)
+		showToast("Item deleted")
+	}
+
+	const openEditModal = (id) => {
+		const item = items.find((i) => i.id === id)
+		if (!item) return
+		setEditingItem(item)
+		setEditValue(item.name)
+		setSwipedItemId(null)
+		setIsEditModalOpen(true)
+	}
+
+	const saveEdit = async () => {
+		if (!editValue.trim() || !editingItem) return
+		const itemDoc = doc(
+			db,
+			"shoppingLists",
+			currentUser.uid,
+			"items",
+			editingItem.id,
+		)
+		await updateDoc(itemDoc, { name: editValue.trim() })
+		setItems(
+			items.map((i) =>
+				i.id === editingItem.id ? { ...i, name: editValue.trim() } : i,
+			),
+		)
+		setIsEditModalOpen(false)
+		setEditingItem(null)
+		setEditValue("")
+		showToast("Item updated")
+	}
+
+	const cancelEdit = () => {
+		setIsEditModalOpen(false)
+		setEditingItem(null)
+		setEditValue("")
+	}
+
+	const openDeleteModal = (id) => {
+		const item = items.find((i) => i.id === id)
+		if (!item) return
+		setDeletingItem(item)
+		setSwipedItemId(null)
+		setIsDeleteModalOpen(true)
+	}
+
+	const handleSwipe = (id, direction) => {
+		if (direction === "left") {
+			setSwipedItemId(id)
+		} else {
+			setSwipedItemId(null)
+		}
 	}
 
 	const clearCompleted = async () => {
@@ -269,39 +324,6 @@ export default function ShoppingListApp() {
 	const showToast = (msg) => {
 		setToast(msg)
 		setTimeout(() => setToast(null), 2000)
-	}
-
-	// Drag and Drop Handlers
-	const handleDragStart = (e, itemId) => {
-		setDraggedItemId(itemId)
-		e.dataTransfer.effectAllowed = "move"
-	}
-
-	const handleDragOver = (e) => {
-		e.preventDefault()
-		e.dataTransfer.dropEffect = "move"
-	}
-
-	const handleDrop = (e, targetItemId) => {
-		e.preventDefault()
-		if (!draggedItemId || draggedItemId === targetItemId) return
-
-		const draggedIndex = items.findIndex((item) => item.id === draggedItemId)
-		const targetIndex = items.findIndex((item) => item.id === targetItemId)
-
-		if (draggedIndex === -1 || targetIndex === -1) return
-
-		const newItems = [...items]
-		const [draggedItem] = newItems.splice(draggedIndex, 1)
-		newItems.splice(targetIndex, 0, draggedItem)
-
-		setItems(newItems)
-		setDraggedItemId(null)
-		showToast("Item reordered")
-	}
-
-	const handleDragEnd = () => {
-		setDraggedItemId(null)
 	}
 
 	// Chat Actions
@@ -448,14 +470,7 @@ export default function ShoppingListApp() {
 					{/* List */}
 					<div className="flex-grow overflow-y-auto p-6 max-w-3xl mx-auto w-full space-y-2">
 						{filter === "shared" ? (
-							<SharedList
-								handleDragEnd={handleDragEnd}
-								handleDragStart={handleDragStart}
-								handleDragOver={handleDragOver}
-								handleDrop={handleDrop}
-								toggleItem={toggleItem}
-								deleteItem={deleteItem}
-							/>
+							<SharedList toggleItem={toggleItem} deleteItem={deleteItem} />
 						) : filteredItems.length === 0 ? (
 							<div className="flex flex-col items-center justify-center py-12 text-center opacity-60">
 								<div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-full mb-4">
@@ -469,61 +484,122 @@ export default function ShoppingListApp() {
 								</p>
 							</div>
 						) : (
-							filteredItems.map((item) => (
-								<div
-									key={item.id}
-									draggable={filter === "all"}
-									onDragStart={(e) => handleDragStart(e, item.id)}
-									onDragOver={handleDragOver}
-									onDrop={(e) => handleDrop(e, item.id)}
-									onDragEnd={handleDragEnd}
-									className={clsx(
-										"group flex items-center gap-3 p-3 py-4 bg-[#fff] dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all",
-										filter === "all" && "cursor-move",
-										item.completed &&
-											"opacity-60 bg-[#F9FAFB] dark:bg-gray-800/50",
-										draggedItemId === item.id && "opacity-50",
-									)}>
-									<label className="relative flex items-center justify-center cursor-pointer p-1">
-										<input
-											type="checkbox"
-											className="peer sr-only item-checkbox"
-											checked={item.completed}
-											onChange={() => toggleItem(item.id)}
-										/>
+							filteredItems.map((item) => {
+								const isSwiped = swipedItemId === item.id
+
+								return (
+									<div key={item.id} className="relative overflow-hidden">
+										{/* Swipe Actions */}
 										<div
 											className={clsx(
-												"w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors",
-												item.completed
-													? "bg-accent-600 border-accent-600"
-													: "border-gray-300 dark:border-gray-600 hover:border-accent-500",
+												"absolute right-0 top-0 bottom-0 flex items-center bg-red-500 transition-transform duration-300 ease-out",
+												isSwiped ? "translate-x-0" : "translate-x-full",
+											)}>
+											<button
+												onClick={() => openEditModal(item.id)}
+												className="p-3 text-white hover:bg-red-600 transition-colors">
+												<Edit className="w-5 h-5" />
+											</button>
+											<button
+												onClick={() => openDeleteModal(item.id)}
+												className="p-3 text-white hover:bg-red-600 transition-colors">
+												<Trash2 className="w-5 h-5" />
+											</button>
+										</div>
+
+										{/* Item */}
+										<div
+											onClick={(e) => {
+												// Only trigger click if it wasn't a drag
+												if (!e.currentTarget.wasDragged) {
+													toggleItem(item.id)
+												}
+											}}
+											onMouseDown={(e) => {
+												e.currentTarget.mouseStartX = e.clientX
+												e.currentTarget.isMouseDown = true
+												e.currentTarget.wasDragged = false
+											}}
+											onMouseMove={(e) => {
+												if (
+													!e.currentTarget.isMouseDown ||
+													!e.currentTarget.mouseStartX
+												)
+													return
+												const deltaX = e.currentTarget.mouseStartX - e.clientX
+												if (Math.abs(deltaX) > 20) {
+													e.currentTarget.wasDragged = true
+												}
+												if (deltaX > 20) {
+													e.currentTarget.style.transform = `translateX(-${Math.min(deltaX, 120)}px)`
+												}
+											}}
+											onMouseUp={(e) => {
+												if (!e.currentTarget.isMouseDown) return
+												const deltaX = e.currentTarget.mouseStartX - e.clientX
+												if (deltaX > 80) {
+													setSwipedItemId(item.id)
+												} else {
+													setSwipedItemId(null)
+												}
+												e.currentTarget.style.transform = ""
+												e.currentTarget.isMouseDown = false
+											}}
+											onMouseLeave={(e) => {
+												if (e.currentTarget.isMouseDown) {
+													e.currentTarget.style.transform = ""
+													e.currentTarget.isMouseDown = false
+													e.currentTarget.wasDragged = false
+												}
+											}}
+											onTouchStart={(e) => {
+												e.currentTarget.touchStartX = e.touches[0].clientX
+												e.currentTarget.wasDragged = false
+											}}
+											onTouchMove={(e) => {
+												if (!e.currentTarget.touchStartX) return
+												const deltaX =
+													e.currentTarget.touchStartX - e.touches[0].clientX
+												if (Math.abs(deltaX) > 20) {
+													e.currentTarget.wasDragged = true
+												}
+												if (deltaX > 20) {
+													e.currentTarget.style.transform = `translateX(-${Math.min(deltaX, 120)}px)`
+												}
+											}}
+											onTouchEnd={(e) => {
+												const deltaX =
+													e.currentTarget.touchStartX -
+													e.changedTouches[0].clientX
+												if (deltaX > 80) {
+													setSwipedItemId(item.id)
+												} else {
+													setSwipedItemId(null)
+												}
+												e.currentTarget.style.transform = ""
+											}}
+											className={clsx(
+												"group flex items-center gap-3 p-3 py-4 bg-[#fff] dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all cursor-pointer",
+												item.completed &&
+													"opacity-60 bg-[#F9FAFB] dark:bg-gray-800/50",
+												isSwiped && "transform -translate-x-24",
 											)}>
 											{item.completed && (
-												<Check
-													className="w-3.5 h-3.5 text-white"
-													strokeWidth={3}
-												/>
+												<Check className="w-5 h-5 text-accent-600" />
 											)}
+											<span
+												className={clsx(
+													"flex-grow font-medium transition-all",
+													item.completed
+														? "line-through text-gray-400"
+														: "text-gray-700 dark:text-gray-200",
+												)}>
+												{item.name}
+											</span>
 										</div>
-									</label>
-
-									<span
-										className={clsx(
-											"flex-grow font-medium transition-all",
-											item.completed
-												? "line-through text-gray-400"
-												: "text-gray-700 dark:text-gray-200",
-										)}>
-										{item.name}
-									</span>
-
-									<button
-										onClick={() => deleteItem(item.id)}
-										className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all">
-										<Trash2 className="w-4 h-4" />
-									</button>
-								</div>
-							))
+									</div>
+								)
+							})
 						)}
 					</div>
 
@@ -791,6 +867,123 @@ export default function ShoppingListApp() {
 								</button>
 							</div>
 						</form>
+					</div>
+				</div>
+			)}
+
+			{/* Edit Item Modal */}
+			{isEditModalOpen && editingItem && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+					<div
+						className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+						onClick={cancelEdit}></div>
+					<div className="relative bg-white dark:bg-gray-800 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-fade-in-up">
+						<div className="flex items-center justify-between mb-6">
+							<div>
+								<h2 className="text-lg font-bold text-gray-900 dark:text-white">
+									Edit Item
+								</h2>
+								<p className="text-sm text-gray-500 dark:text-gray-400">
+									Update the item name.
+								</p>
+							</div>
+							<button
+								onClick={cancelEdit}
+								className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+								<X className="w-5 h-5 dark:text-white" />
+							</button>
+						</div>
+
+						<form
+							onSubmit={(e) => {
+								e.preventDefault()
+								saveEdit()
+							}}
+							className="space-y-4">
+							<div>
+								<label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+									Item name
+								</label>
+								<input
+									type="text"
+									required
+									value={editValue}
+									onChange={(e) => setEditValue(e.target.value)}
+									className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-accent-500 outline-none dark:bg-gray-700 dark:text-white"
+									placeholder="Enter item name"
+									autoFocus
+								/>
+							</div>
+							<div className="flex justify-end gap-2">
+								<button
+									type="button"
+									onClick={cancelEdit}
+									className="px-3 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900">
+									Cancel
+								</button>
+								<button
+									type="submit"
+									className="px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold rounded-lg transition-colors">
+									Save
+								</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			)}
+
+			{/* Delete Confirmation Modal */}
+			{isDeleteModalOpen && deletingItem && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+					<div
+						className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+						onClick={() => {
+							setIsDeleteModalOpen(false)
+							setDeletingItem(null)
+						}}></div>
+					<div className="relative bg-white dark:bg-gray-800 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-fade-in-up">
+						<div className="flex items-center justify-between mb-6">
+							<div>
+								<h2 className="text-lg font-bold text-gray-900 dark:text-white">
+									Delete Item
+								</h2>
+								<p className="text-sm text-gray-500 dark:text-gray-400">
+									Are you sure you want to delete this item?
+								</p>
+							</div>
+							<button
+								onClick={() => {
+									setIsDeleteModalOpen(false)
+									setDeletingItem(null)
+								}}
+								className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+								<X className="w-5 h-5 dark:text-white" />
+							</button>
+						</div>
+
+						<div className="mb-6 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+							<p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+								"{deletingItem.name}"
+							</p>
+						</div>
+
+						<div className="flex justify-end gap-2">
+							<button
+								type="button"
+								onClick={() => {
+									setIsDeleteModalOpen(false)
+									setDeletingItem(null)
+								}}
+								className="px-3 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900">
+								Cancel
+							</button>
+							<button
+								type="button"
+								onClick={() => deleteItem(deletingItem.id)}
+								className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-lg transition-colors">
+								Confirm Delete
+							</button>
+						</div>
 					</div>
 				</div>
 			)}
