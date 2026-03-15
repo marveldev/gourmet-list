@@ -372,6 +372,10 @@ export default function ShoppingListApp() {
 				isDark={isDark}
 				openShare={() => setIsShareModalOpen(true)}
 				openChefBot={() => setIsChatOpen(true)}
+				openShareWithEmail={(email) => {
+					setShareEmail(email)
+					setIsShareModalOpen(true)
+				}}
 			/>
 
 			<main className="flex-grow flex overflow-hidden relative">
