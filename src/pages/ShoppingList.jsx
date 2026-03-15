@@ -236,14 +236,6 @@ export default function ShoppingListApp() {
 		setIsDeleteModalOpen(true)
 	}
 
-	const handleSwipe = (id, direction) => {
-		if (direction === "left") {
-			setSwipedItemId(id)
-		} else {
-			setSwipedItemId(null)
-		}
-	}
-
 	const clearCompleted = async () => {
 		const completedItems = items.filter((item) => item.completed)
 
@@ -492,7 +484,7 @@ export default function ShoppingListApp() {
 										{/* Swipe Actions */}
 										<div
 											className={clsx(
-												"absolute right-0 top-0 bottom-0 flex items-center bg-red-500 transition-transform duration-300 ease-out",
+												"absolute right-0 top-0 bottom-0 flex items-center bg-accent-500 rounded-tr-lg rounded-br-lg border border-gray-100 dark:border-gray-700 shadow-sm transition-transform duration-300 ease-out z-10",
 												isSwiped ? "translate-x-0" : "translate-x-full",
 											)}>
 											<button
@@ -582,7 +574,6 @@ export default function ShoppingListApp() {
 												"group flex items-center gap-3 p-3 py-4 bg-[#fff] dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all cursor-pointer",
 												item.completed &&
 													"opacity-60 bg-[#F9FAFB] dark:bg-gray-800/50",
-												isSwiped && "transform -translate-x-24",
 											)}>
 											{item.completed && (
 												<Check className="w-5 h-5 text-accent-600" />
@@ -980,7 +971,7 @@ export default function ShoppingListApp() {
 							<button
 								type="button"
 								onClick={() => deleteItem(deletingItem.id)}
-								className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-lg transition-colors">
+								className="px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold rounded-lg transition-colors">
 								Confirm Delete
 							</button>
 						</div>
