@@ -575,9 +575,17 @@ export default function ShoppingListApp() {
 												item.completed &&
 													"opacity-60 bg-[#F9FAFB] dark:bg-gray-800/50",
 											)}>
-											{item.completed && (
-												<Check className="w-5 h-5 text-accent-600" />
-											)}
+											<div
+												className={clsx(
+													"w-5 h-5 border-2 rounded flex items-center justify-center transition-all",
+													item.completed
+														? "bg-accent-600 border-accent-600"
+														: "border-gray-300",
+												)}>
+												{item.completed && (
+													<Check className="w-4 h-4 text-white" />
+												)}
+											</div>
 											<span
 												className={clsx(
 													"flex-grow font-medium transition-all",

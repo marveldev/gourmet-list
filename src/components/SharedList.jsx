@@ -189,16 +189,7 @@ export default function SharedListItems() {
 
 	return (
 		<>
-			<div className="flex justify-end mb-4">
-				<button
-					onClick={moveAllToMyList}
-					disabled={isMoving}
-					className="px-4 py-2 bg-accent-500 text-white rounded-lg disabled:opacity-50">
-					{isMoving ? "Moving…" : "Move All To My List"}
-				</button>
-			</div>
-
-			<div className="space-y-2">
+			<div className="space-y-2 mb-4">
 				{items.map((item) => (
 					<div key={item.id} className="relative overflow-hidden">
 						{/* Item */}
@@ -285,13 +276,22 @@ export default function SharedListItems() {
 								<button
 									type="button"
 									onClick={deleteSharedItem}
-									className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-lg transition-colors">
+									className="px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold rounded-lg transition-colors">
 									Confirm Delete
 								</button>
 							</div>
 						</div>
 					</div>
 				)}
+			</div>
+
+			<div className="flex justify-end">
+				<button
+					onClick={moveAllToMyList}
+					disabled={isMoving}
+					className="px-4 py-2 bg-accent-500 text-white rounded-lg disabled:opacity-50">
+					{isMoving ? "Moving…" : "Move All To My List"}
+				</button>
 			</div>
 		</>
 	)
