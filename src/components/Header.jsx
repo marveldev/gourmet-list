@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom"
 import { MessageSquare, Share2, Moon, Sun, ShoppingBag } from "lucide-react"
 import NotificationBadge from "./NotificationBadge"
+import { useAuth } from "../contexts/AuthContext"
 
 export default function Header({
 	openChefBot,
@@ -9,6 +10,7 @@ export default function Header({
 	openShare,
 	openShareWithEmail,
 }) {
+	const { currentUser } = useAuth()
 	return (
 		<header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 h-16 flex-shrink-0 z-20 transition-colors">
 			<div className="h-full px-4 md:px-6 flex items-center justify-between max-w-7xl mx-auto w-full">
@@ -22,7 +24,7 @@ export default function Header({
 				</Link>
 
 				<div className="flex items-center gap-2">
-					<NotificationBadge openShareWithEmail={openShareWithEmail} />
+					<NotificationBadge currentUser={currentUser} />
 					<button
 						onClick={openChefBot}
 						className="btn-icon relative dark:text-gray-300 dark:hover:bg-gray-800">

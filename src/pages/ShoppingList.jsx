@@ -26,6 +26,7 @@ import {
 	arrayUnion,
 	arrayRemove,
 	getDoc,
+	serverTimestamp,
 } from "firebase/firestore"
 import { useChefBot } from "../hooks/useChefBot"
 import Header from "../components/Header"
@@ -271,8 +272,8 @@ export default function ShoppingListApp() {
 		showToast("Cleared all items")
 	}
 
-	const shareListWithEmail = async (email) => {
-		// 1. Find user by email
+	const shareListWithEmail = async (currentUser, listId, email) => {
+		// Find the target user by email
 		const q = query(collection(db, "users"), where("email", "==", email))
 		const snapshot = await getDocs(q)
 
@@ -280,27 +281,26 @@ export default function ShoppingListApp() {
 			throw new Error("No registered user found with this email")
 		}
 
-		const targetUserId = snapshot.docs[0].id
+		const targetUserDoc = snapshot.docs[0]
+		const targetUserId = targetUserDoc.id
 
-		// 2. Ensure shopping list doc exists
-		const listRef = doc(db, "shoppingLists", currentUser.uid)
-
-		if (sharedUsers.some((u) => u.uid === targetUserId)) {
-			throw new Error("User already has access")
-		}
-
-		await setDoc(
-			listRef,
-			{
-				ownerId: currentUser.uid,
-				sharedWith: [],
-			},
-			{ merge: true },
-		)
-
-		// 3. Grant access
+		// Add target user to the sharedWith array
+		const listRef = doc(db, "shoppingLists", listId)
 		await updateDoc(listRef, {
 			sharedWith: arrayUnion(targetUserId),
+		})
+
+		// Create notification for the target user
+		const notifRef = doc(collection(db, "users", targetUserId, "notifications"))
+
+		await setDoc(notifRef, {
+			type: "list_shared",
+			fromUid: currentUser.uid,
+			fromEmail: currentUser.email,
+			listId: listRef.id,
+			listName: "Shared List",
+			timestamp: serverTimestamp(),
+			read: false,
 		})
 	}
 
@@ -343,11 +343,14 @@ export default function ShoppingListApp() {
 		e.preventDefault()
 
 		try {
-			await shareListWithEmail(shareEmail.trim().toLowerCase())
-
+			await shareListWithEmail(
+				currentUser,
+				currentUser.uid,
+				shareEmail.trim().toLowerCase(),
+			)
 			showToast("List shared successfully")
-			setIsShareModalOpen(false)
-			setShareEmail("")
+			setShareEmail("") // clear input if you want
+			setIsShareModalOpen(false) // close modal
 		} catch (err) {
 			showToast(err.message || "Unable to share list")
 		}
