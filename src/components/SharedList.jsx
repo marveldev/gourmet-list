@@ -47,7 +47,7 @@ export default function SharedListItems() {
 				// 2️⃣ Fetch items for each shared list
 				for (const listDoc of listsSnapshot.docs) {
 					const listId = listDoc.id
-					const ownerId = listDoc.data().ownerId
+					const ownerId = listId
 
 					if (ownerId) ownerIds.add(ownerId)
 

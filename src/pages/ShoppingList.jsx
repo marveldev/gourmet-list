@@ -100,6 +100,26 @@ export default function ShoppingListApp() {
 		}
 	}, [chatHistory, isChatOpen])
 
+	useEffect(() => {
+		if (!currentUser) return
+
+		const ensureListExists = async () => {
+			const listRef = doc(db, "shoppingLists", currentUser.uid)
+			const listSnap = await getDoc(listRef)
+
+			if (!listSnap.exists()) {
+				await setDoc(listRef, {
+					ownerId: currentUser.uid,
+					ownerEmail: currentUser.email,
+					sharedWith: [],
+					createdAt: serverTimestamp(),
+				})
+			}
+		}
+
+		ensureListExists()
+	}, [currentUser])
+
 	const fetchSharedUsers = async () => {
 		try {
 			const listRef = doc(db, "shoppingLists", currentUser.uid)
