@@ -9,6 +9,8 @@ export default function Header({
 	isDark,
 	openShare,
 	openShareWithEmail,
+	setFilter,
+	setToast,
 }) {
 	const { currentUser } = useAuth()
 	return (
@@ -24,7 +26,11 @@ export default function Header({
 				</Link>
 
 				<div className="flex items-center gap-2">
-					<NotificationBadge currentUser={currentUser} />
+					<NotificationBadge
+						currentUser={currentUser}
+						setFilter={setFilter}
+						setToast={setToast}
+					/>
 					<button
 						onClick={openChefBot}
 						className="btn-icon relative dark:text-gray-300 dark:hover:bg-gray-800">

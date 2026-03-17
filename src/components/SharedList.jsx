@@ -49,7 +49,7 @@ export default function SharedListItems() {
 					const listId = listDoc.id
 					const ownerId = listDoc.data().ownerId
 
-					ownerIds.add(ownerId)
+					if (ownerId) ownerIds.add(ownerId)
 
 					const itemsSnap = await getDocs(
 						collection(db, "shoppingLists", listId, "items"),
@@ -107,7 +107,7 @@ export default function SharedListItems() {
 
 	const toggleSharedItem = async (item) => {
 		try {
-			const itemRef = doc(db, "shoppingLists", item.ownerId, "items", item.id)
+			const itemRef = doc(db, "shoppingLists", item.listId, "items", item.id)
 
 			await updateDoc(itemRef, {
 				completed: !item.completed,
@@ -169,7 +169,7 @@ export default function SharedListItems() {
 			const itemRef = doc(
 				db,
 				"shoppingLists",
-				deletingItem.ownerId,
+				deletingItem.listId,
 				"items",
 				deletingItem.id,
 			)

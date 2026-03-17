@@ -360,7 +360,6 @@ export default function ShoppingListApp() {
 	const filteredItems = items.filter((item) => {
 		if (filter === "active") return !item.completed
 		if (filter === "completed") return item.completed
-		// if (filter === "shared") return item.completed
 		return true
 	})
 
@@ -379,6 +378,8 @@ export default function ShoppingListApp() {
 					setShareEmail(email)
 					setIsShareModalOpen(true)
 				}}
+				setFilter={setFilter}
+				setToast={setToast}
 			/>
 
 			<main className="flex-grow flex overflow-hidden relative">
