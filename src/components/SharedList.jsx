@@ -245,7 +245,7 @@ export default function SharedListItems() {
 								setIsDeleteModalOpen(false)
 								setDeletingItem(null)
 							}}></div>
-						<div className="relative bg-white dark:bg-gray-800 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-fade-in-up">
+						<div className="relative bg-[#fff] dark:bg-gray-800 border border-[#e5e7eb] dark:border-gray-600 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-fade-in-up">
 							<div className="flex items-center justify-between mb-6">
 								<div>
 									<h2 className="text-lg font-bold text-gray-900 dark:text-white">

@@ -838,7 +838,7 @@ export default function ShoppingListApp() {
 					<div
 						className="absolute inset-0 bg-black/40 backdrop-blur-sm"
 						onClick={() => setIsShareModalOpen(false)}></div>
-					<div className="relative bg-white dark:bg-gray-800 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-fade-in-up">
+					<div className="relative bg-[#fff] dark:bg-gray-800 border border-[#e5e7eb] dark:border-gray-600 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-fade-in-up">
 						<div className="flex items-center justify-between mb-8">
 							<div>
 								<h2 className="text-lg font-bold text-gray-900 dark:text-white">
@@ -919,7 +919,7 @@ export default function ShoppingListApp() {
 					<div
 						className="absolute inset-0 bg-black/40 backdrop-blur-sm"
 						onClick={cancelEdit}></div>
-					<div className="relative bg-white dark:bg-gray-800 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-fade-in-up">
+					<div className="relative bg-[#fff] dark:bg-gray-800 border border-[#e5e7eb] dark:border-gray-600 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-fade-in-up">
 						<div className="flex items-center justify-between mb-6">
 							<div>
 								<h2 className="text-lg font-bold text-gray-900 dark:text-white">
@@ -983,7 +983,7 @@ export default function ShoppingListApp() {
 							setIsDeleteModalOpen(false)
 							setDeletingItem(null)
 						}}></div>
-					<div className="relative bg-white dark:bg-gray-800 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-fade-in-up">
+					<div className="relative bg-[#fff] dark:bg-gray-800 border border-[#e5e7eb] dark:border-gray-600 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-fade-in-up">
 						<div className="flex items-center justify-between mb-6">
 							<div>
 								<h2 className="text-lg font-bold text-gray-900 dark:text-white">
@@ -1003,7 +1003,7 @@ export default function ShoppingListApp() {
 							</button>
 						</div>
 
-						<div className="mb-6 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+						<div className="mb-6 p-3 bg-[#f9fafb] dark:bg-gray-700 rounded-lg">
 							<p className="text-sm font-medium text-gray-800 dark:text-gray-200">
 								"{deletingItem.name}"
 							</p>
@@ -1035,7 +1035,7 @@ export default function ShoppingListApp() {
 					<div
 						className="absolute inset-0 bg-black/40 backdrop-blur-sm"
 						onClick={() => setDeleteModalIsOpen(false)}></div>
-					<div className="relative bg-white dark:bg-gray-800 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-fade-in-up">
+					<div className="relative bg-[#fff] dark:bg-gray-800 border border-[#e5e7eb] dark:border-gray-600 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-fade-in-up">
 						<div className="flex items-center justify-between mb-4">
 							<div>
 								<h2 className="text-lg font-bold text-gray-900 dark:text-white">
