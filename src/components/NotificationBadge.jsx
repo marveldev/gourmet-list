@@ -179,7 +179,7 @@ export default function NotificationBadge({
 			</button>
 
 			{isOpen && (
-			<div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-1rem)] bg-[#fff] dark:bg-gray-800 border border-[#e5e7eb] dark:border-gray-600 rounded-lg shadow-lg p-2 z-50 max-h-[70vh] overflow-y-auto sm:w-72 max-sm:fixed max-sm:right-1 max-sm:top-16 max-sm:w-auto max-sm:max-w-xs">
+				<div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-1rem)] bg-[#fff] dark:bg-gray-800 border border-[#e5e7eb] dark:border-gray-600 rounded-lg shadow-lg p-2 z-50 max-h-[70vh] overflow-y-auto sm:w-72 max-sm:fixed max-sm:right-1 max-sm:top-16 max-sm:w-auto max-sm:max-w-xs">
 					{notifications.length > 0 ? (
 						notifications.map((notif) => (
 							<div
