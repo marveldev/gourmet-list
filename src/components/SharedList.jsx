@@ -199,7 +199,15 @@ export default function SharedListItems() {
 								"group flex items-center gap-3 p-3 py-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all cursor-pointer",
 								item.completed && "opacity-60 bg-gray-50 dark:bg-gray-800/50",
 							)}>
-							{item.completed && <Check className="w-5 h-5 text-accent-600" />}
+							<div
+								className={clsx(
+									"w-5 h-5 border-2 rounded flex items-center justify-center transition-all",
+									item.completed
+										? "bg-accent-600 border-accent-600"
+										: "border-gray-300",
+								)}>
+								{item.completed && <Check className="w-4 h-4 text-white" />}
+							</div>
 							<span
 								className={clsx(
 									"flex-grow font-medium transition-all",
