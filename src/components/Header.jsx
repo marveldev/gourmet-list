@@ -26,11 +26,17 @@ export default function Header({
 				</Link>
 
 				<div className="flex items-center gap-2">
-					<NotificationBadge
-						currentUser={currentUser}
-						setFilter={setFilter}
-						setToast={setToast}
-					/>
+					<button
+						onClick={toggleTheme}
+						className="btn-icon dark:text-gray-300 dark:hover:bg-gray-800"
+						title={isDark ? "Switch to light theme" : "Switch to dark theme"}>
+						{isDark ? (
+							<Sun className="w-6 h-6" />
+						) : (
+							<Moon className="w-6 h-6" />
+						)}
+					</button>
+
 					<button
 						onClick={openChefBot}
 						className="btn-icon relative dark:text-gray-300 dark:hover:bg-gray-800">
@@ -47,16 +53,11 @@ export default function Header({
 						</button>
 					)}
 
-					<button
-						onClick={toggleTheme}
-						className="btn-icon dark:text-gray-300 dark:hover:bg-gray-800"
-						title={isDark ? "Switch to light theme" : "Switch to dark theme"}>
-						{isDark ? (
-							<Sun className="w-6 h-6" />
-						) : (
-							<Moon className="w-6 h-6" />
-						)}
-					</button>
+					<NotificationBadge
+						currentUser={currentUser}
+						setFilter={setFilter}
+						setToast={setToast}
+					/>
 				</div>
 			</div>
 		</header>

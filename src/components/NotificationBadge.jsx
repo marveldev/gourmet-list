@@ -179,7 +179,7 @@ export default function NotificationBadge({
 			</button>
 
 			{isOpen && (
-				<div className="absolute right-0 mt-2 w-72 bg-[#fff] dark:bg-gray-800 border border-[#e5e7eb] dark:border-gray-600 rounded-lg shadow-lg p-2 z-50">
+				<div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-1rem)] bg-[#fff] dark:bg-gray-800 border border-[#e5e7eb] dark:border-gray-600 rounded-lg shadow-lg p-2 z-50 max-h-[70vh] overflow-y-auto sm:w-72 max-sm:fixed max-sm:inset-x-1 max-sm:top-16 max-sm:w-auto max-sm:max-w-none">
 					{notifications.length > 0 ? (
 						notifications.map((notif) => (
 							<div
@@ -193,7 +193,7 @@ export default function NotificationBadge({
 											</span>{" "}
 											shared a list with you.
 										</p>
-										<div className="flex gap-2">
+										<div className="flex flex-wrap gap-2">
 											<button
 												className="px-2 py-[0.35rem] bg-gray-500 text-white rounded text-xs"
 												onClick={() => openSharedList(notif)}>
@@ -224,7 +224,7 @@ export default function NotificationBadge({
 											</span>{" "}
 											shared their list back with you.
 										</p>
-										<div className="flex gap-2">
+										<div className="flex flex-wrap gap-2">
 											<button
 												className="px-2 py-[0.35rem] bg-gray-500 text-white rounded text-xs"
 												onClick={() => openSharedList(notif)}>
@@ -247,7 +247,7 @@ export default function NotificationBadge({
 											</span>{" "}
 											has stopped sharing their list with you.
 										</p>
-										<div className="flex gap-2">
+										<div className="flex flex-wrap gap-2">
 											<button
 												onClick={() => markAsRead(notif.id)}
 												className="px-2 py-[0.35rem] bg-gray-500 hover:bg-gray-500 text-white text-xs rounded">
@@ -266,7 +266,7 @@ export default function NotificationBadge({
 											</span>
 											.
 										</p>
-										<div className="flex gap-2">
+										<div className="flex flex-wrap gap-2">
 											<button
 												onClick={() => stopSharing(notif.withUid, notif.id)}
 												className="px-2 py-[0.35rem] bg-gray-500 text-white text-xs rounded">
