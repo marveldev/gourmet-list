@@ -75,10 +75,9 @@ export default function NotificationBadge({
 		}
 	}
 
-	const openSharedList = async (notif) => {
+	const openSharedList = (notif) => {
 		try {
 			setFilter("shared")
-			await markAsRead(notif.id)
 			setIsOpen(false)
 		} catch (err) {
 			console.error("Failed to open shared list:", err)
@@ -186,7 +185,6 @@ export default function NotificationBadge({
 							<div
 								key={notif.id}
 								className="flex flex-col gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
-								{/* Main notification text */}
 								{notif.type === "list_shared" && (
 									<>
 										<p className="text-sm text-gray-700 dark:text-gray-200">
@@ -195,21 +193,24 @@ export default function NotificationBadge({
 											</span>{" "}
 											shared a list with you.
 										</p>
-
 										<div className="flex gap-2">
 											<button
-												className="px-2 py-[0.35rem] bg-accent-500 text-white rounded text-xs"
+												className="px-2 py-[0.35rem] bg-gray-500 text-white rounded text-xs"
 												onClick={() => openSharedList(notif)}>
 												Open List
 											</button>
-
 											<button
-												className="px-2 py-[0.35rem] bg-accent-500 text-white rounded text-xs"
+												className="px-2 py-[0.35rem] bg-gray-500 text-white rounded text-xs"
 												onClick={async () => {
 													await shareBack(notif.fromUid)
 													await markAsRead(notif.id)
 												}}>
 												Share Back
+											</button>
+											<button
+												className="px-2 py-[0.35rem] bg-gray-500 hover:bg-gray-500 text-white rounded text-xs"
+												onClick={() => markAsRead(notif.id)}>
+												Dismiss
 											</button>
 										</div>
 									</>
@@ -223,16 +224,21 @@ export default function NotificationBadge({
 											</span>{" "}
 											shared their list back with you.
 										</p>
-
 										<div className="flex gap-2">
 											<button
-												className="px-2 py-[0.35rem] bg-accent-500 text-white rounded text-xs"
+												className="px-2 py-[0.35rem] bg-gray-500 text-white rounded text-xs"
 												onClick={() => openSharedList(notif)}>
 												Open List
+											</button>
+											<button
+												className="px-2 py-[0.35rem] bg-gray-500 hover:bg-gray-500 text-white rounded text-xs"
+												onClick={() => markAsRead(notif.id)}>
+												Dismiss
 											</button>
 										</div>
 									</>
 								)}
+
 								{notif.type === "sharing_stopped" && (
 									<>
 										<p className="text-sm text-gray-700 dark:text-gray-200">
@@ -244,19 +250,18 @@ export default function NotificationBadge({
 										<div className="flex gap-2">
 											<button
 												onClick={() => markAsRead(notif.id)}
-												className="px-2 py-[0.35rem] bg-gray-400 hover:bg-gray-500 text-white text-xs rounded">
+												className="px-2 py-[0.35rem] bg-gray-500 hover:bg-gray-500 text-white text-xs rounded">
 												Dismiss
 											</button>
 										</div>
 									</>
 								)}
-								{/* Active sharing notification */}
+
 								{notif.type === "sharing_active" && (
-									<div className="mt-2 flex flex-col gap-1">
+									<div className="flex flex-col gap-1">
 										<p className="text-sm text-gray-700 dark:text-gray-200">
-											You are sharing your list with
+											You are sharing your list with{" "}
 											<span className="font-semibold">
-												{" "}
 												{notif.withEmail || "Someone"}
 											</span>
 											.
@@ -278,7 +283,6 @@ export default function NotificationBadge({
 							</div>
 						))
 					) : (
-						// Show this if there are no notifications
 						<p className="text-center text-gray-500 dark:text-gray-400 text-sm">
 							No notifications
 						</p>
