@@ -81,8 +81,8 @@ export default function Navbar({ currentUser, toggleTheme, isDark, logout }) {
 			{isOpen && (
 				<div
 					className="md:hidden absolute top-full right-4 mt-2 w-64 
-    bg-white dark:bg-gray-900 rounded-2xl shadow-xl 
-    border border-gray-200 dark:border-gray-800 
+    bg-[#fff] dark:bg-gray-800 rounded-2xl shadow-xl 
+    border border-[#e5e7eb] dark:border-gray-600
     p-4 animate-in fade-in slide-in-from-top-2 duration-200">
 					<div className="flex flex-col gap-3">
 						{!currentUser ? (
@@ -99,7 +99,7 @@ export default function Navbar({ currentUser, toggleTheme, isDark, logout }) {
 									to="/signup"
 									onClick={() => setIsOpen(false)}
 									className="w-full text-center py-2.5 rounded-lg font-semibold 
-            border-2 border-accent-600 text-accent-700">
+            border-2 border-accent-600 text-accent-700 dark:text-white dark:border-white">
 									Create Account
 								</Link>
 							</>
@@ -119,8 +119,7 @@ export default function Navbar({ currentUser, toggleTheme, isDark, logout }) {
 										setIsOpen(false)
 									}}
 									className="w-full text-center py-2.5 rounded-lg font-semibold 
-            border border-gray-300 dark:border-gray-700 
-            text-gray-700 dark:text-gray-300">
+            border-2 border-accent-600 text-accent-700 dark:border-white dark:text-white">
 									Sign Out
 								</button>
 							</>

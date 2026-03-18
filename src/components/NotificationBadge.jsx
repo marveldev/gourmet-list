@@ -179,7 +179,7 @@ export default function NotificationBadge({
 			</button>
 
 			{isOpen && (
-				<div className="absolute right-0 mt-2 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2 z-50">
+				<div className="absolute right-0 mt-2 w-72 bg-[#fff] dark:bg-gray-800 border border-[#e5e7eb] dark:border-gray-600 rounded-lg shadow-lg p-2 z-50">
 					{notifications.length > 0 ? (
 						notifications.map((notif) => (
 							<div
