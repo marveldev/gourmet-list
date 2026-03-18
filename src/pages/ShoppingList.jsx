@@ -293,6 +293,11 @@ export default function ShoppingListApp() {
 	}
 
 	const shareListWithEmail = async (currentUser, listId, email) => {
+		// Prevent sharing with own email
+		if (email === currentUser.email.toLowerCase()) {
+			throw new Error("You can't share your list with yourself")
+		}
+
 		// Find the target user by email
 		const q = query(collection(db, "users"), where("email", "==", email))
 		const snapshot = await getDocs(q)
@@ -304,8 +309,18 @@ export default function ShoppingListApp() {
 		const targetUserDoc = snapshot.docs[0]
 		const targetUserId = targetUserDoc.id
 
-		// Add target user to the sharedWith array
+		// Check for duplicate — bail early if already shared
 		const listRef = doc(db, "shoppingLists", listId)
+		const listSnap = await getDoc(listRef)
+		const existingSharedWith = listSnap.exists()
+			? listSnap.data().sharedWith || []
+			: []
+
+		if (existingSharedWith.includes(targetUserId)) {
+			throw new Error(`You're already sharing your list with ${email}`)
+		}
+
+		// Add target user to the sharedWith array
 		await updateDoc(listRef, {
 			sharedWith: arrayUnion(targetUserId),
 		})
