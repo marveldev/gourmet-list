@@ -92,6 +92,7 @@ export default function NotificationBadge({
 
 			if (!listSnap.exists()) {
 				setToast("Your list does not exist yet")
+				setTimeout(() => setToast(null), 2000)
 				return
 			}
 
@@ -108,11 +109,10 @@ export default function NotificationBadge({
 
 			// Notify the sender
 			await addDoc(collection(db, "users", senderUid, "notifications"), {
-				type: "list_shared",
+				type: "list_shared_back",
 				fromUid: currentUser.uid,
 				fromEmail: currentUser.email,
 				listId: currentUser.uid,
-				listName: "Shared List",
 				timestamp: serverTimestamp(),
 				read: false,
 			})
@@ -128,9 +128,11 @@ export default function NotificationBadge({
 			})
 
 			setToast("List shared back successfully")
+			setTimeout(() => setToast(null), 2000)
 			setIsOpen(false)
 		} catch (err) {
 			console.error("Failed to share back:", err)
+			setTimeout(() => setToast(null), 2000)
 			setToast("Failed to share back")
 		}
 	}
@@ -148,7 +150,17 @@ export default function NotificationBadge({
 				{ read: true },
 			)
 
+			// Notify the recipient that sharing has stopped
+			await addDoc(collection(db, "users", uid, "notifications"), {
+				type: "sharing_stopped",
+				fromUid: currentUser.uid,
+				fromEmail: currentUser.email,
+				timestamp: serverTimestamp(),
+				read: false,
+			})
+
 			setToast("Sharing stopped")
+			setTimeout(() => setToast(null), 2000)
 		} catch (err) {
 			console.error(err)
 		}
@@ -175,40 +187,92 @@ export default function NotificationBadge({
 								key={notif.id}
 								className="flex flex-col gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
 								{/* Main notification text */}
-								<p className="text-sm text-gray-700 dark:text-gray-200">
-									<span className="font-semibold">
-										{notif.fromEmail || "Someone"}
-									</span>{" "}
-									shared a list with you.
-								</p>
+								{notif.type === "list_shared" && (
+									<>
+										<p className="text-sm text-gray-700 dark:text-gray-200">
+											<span className="font-semibold">
+												{notif.fromEmail || "Someone"}
+											</span>{" "}
+											shared a list with you.
+										</p>
 
-								<div className="flex gap-2">
-									<button
-										className="px-2 py-1 bg-accent-500 text-white rounded text-xs"
-										onClick={() => openSharedList(notif)}>
-										Open List
-									</button>
-									<button
-										className="px-2 py-1 bg-accent-500 text-white rounded text-xs"
-										onClick={async () => {
-											await shareBack(notif.fromUid)
-											await markAsRead(notif.id)
-										}}>
-										Share Back
-									</button>
-								</div>
+										<div className="flex gap-2">
+											<button
+												className="px-2 py-[0.35rem] bg-accent-500 text-white rounded text-xs"
+												onClick={() => openSharedList(notif)}>
+												Open List
+											</button>
 
+											<button
+												className="px-2 py-[0.35rem] bg-accent-500 text-white rounded text-xs"
+												onClick={async () => {
+													await shareBack(notif.fromUid)
+													await markAsRead(notif.id)
+												}}>
+												Share Back
+											</button>
+										</div>
+									</>
+								)}
+
+								{notif.type === "list_shared_back" && (
+									<>
+										<p className="text-sm text-gray-700 dark:text-gray-200">
+											<span className="font-semibold">
+												{notif.fromEmail || "Someone"}
+											</span>{" "}
+											shared their list back with you.
+										</p>
+
+										<div className="flex gap-2">
+											<button
+												className="px-2 py-[0.35rem] bg-accent-500 text-white rounded text-xs"
+												onClick={() => openSharedList(notif)}>
+												Open List
+											</button>
+										</div>
+									</>
+								)}
+								{notif.type === "sharing_stopped" && (
+									<>
+										<p className="text-sm text-gray-700 dark:text-gray-200">
+											<span className="font-semibold">
+												{notif.fromEmail || "Someone"}
+											</span>{" "}
+											has stopped sharing their list with you.
+										</p>
+										<div className="flex gap-2">
+											<button
+												onClick={() => markAsRead(notif.id)}
+												className="px-2 py-[0.35rem] bg-gray-400 hover:bg-gray-500 text-white text-xs rounded">
+												Dismiss
+											</button>
+										</div>
+									</>
+								)}
 								{/* Active sharing notification */}
 								{notif.type === "sharing_active" && (
 									<div className="mt-2 flex flex-col gap-1">
 										<p className="text-sm text-gray-700 dark:text-gray-200">
-											You are sharing your list with {notif.withEmail}.
+											You are sharing your list with
+											<span className="font-semibold">
+												{" "}
+												{notif.withEmail || "Someone"}
+											</span>
+											.
 										</p>
-										<button
-											onClick={() => stopSharing(notif.withUid, notif.id)}
-											className="px-2 py-1 bg-red-500 text-white text-xs rounded">
-											Stop Sharing
-										</button>
+										<div className="flex gap-2">
+											<button
+												onClick={() => stopSharing(notif.withUid, notif.id)}
+												className="px-2 py-[0.35rem] bg-gray-500 text-white text-xs rounded">
+												Stop Sharing
+											</button>
+											<button
+												onClick={() => markAsRead(notif.id)}
+												className="px-2 py-[0.35rem] bg-gray-500 hover:bg-gray-500 text-white text-xs rounded">
+												Dismiss
+											</button>
+										</div>
 									</div>
 								)}
 							</div>
