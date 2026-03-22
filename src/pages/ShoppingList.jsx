@@ -29,11 +29,20 @@ import { db } from "../firebase"
 import { useAuth } from "../../src/contexts/AuthContext"
 import { listenToItems } from "../services/list.services"
 
+const ALLOWED_FILTERS = ["all", "active", "completed"]
+
+const getValidFilter = (value) =>
+	ALLOWED_FILTERS.includes(value) ? value : "all"
+
 export default function ShoppingListApp() {
 	// State
 	const { currentUser } = useAuth()
 	const [items, setItems] = useState([])
-	const [filter, setFilter] = useState("all")
+	const [filter, setFilter] = useState(() => {
+		if (!currentUser?.uid) return "all"
+		const savedFilter = localStorage.getItem(`chef.filter.${currentUser.uid}`)
+		return getValidFilter(savedFilter)
+	})
 	const [inputValue, setInputValue] = useState("")
 	const [isChatOpen, setIsChatOpen] = useState(false)
 	const [deleteModalIsOpen, setDeleteModalIsOpen] = useState(false)
@@ -45,6 +54,7 @@ export default function ShoppingListApp() {
 	const [editValue, setEditValue] = useState("")
 	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 	const [deletingItem, setDeletingItem] = useState(null)
+	const hydratedFilterUserIdRef = useRef(currentUser?.uid ?? null)
 
 	const usersCollectionRef = collection(
 		db,
@@ -52,6 +62,33 @@ export default function ShoppingListApp() {
 		currentUser.uid,
 		"items",
 	)
+
+	useEffect(() => {
+		if (!currentUser?.uid) {
+			hydratedFilterUserIdRef.current = null
+			setFilter("all")
+			return
+		}
+
+		const savedFilter = localStorage.getItem(`chef.filter.${currentUser.uid}`)
+		const nextFilter = getValidFilter(savedFilter)
+
+		hydratedFilterUserIdRef.current = currentUser.uid
+		setFilter(nextFilter)
+	}, [currentUser?.uid])
+
+	useEffect(() => {
+		if (!currentUser?.uid) return
+		if (hydratedFilterUserIdRef.current !== currentUser.uid) return
+
+		const validFilter = getValidFilter(filter)
+		if (validFilter !== filter) {
+			setFilter(validFilter)
+			return
+		}
+
+		localStorage.setItem(`chef.filter.${currentUser.uid}`, validFilter)
+	}, [filter, currentUser?.uid])
 
 	useEffect(() => {
 		if (!currentUser) return
