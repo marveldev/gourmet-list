@@ -37,7 +37,15 @@ const getValidFilter = (value) =>
 export default function ShoppingListApp() {
 	// State
 	const { currentUser } = useAuth()
-	const [items, setItems] = useState([])
+	const [items, setItems] = useState(() => {
+		try {
+			const cachedItems = localStorage.getItem("chef.list")
+			const parsedItems = cachedItems ? JSON.parse(cachedItems) : []
+			return Array.isArray(parsedItems) ? parsedItems : []
+		} catch {
+			return []
+		}
+	})
 	const [filter, setFilter] = useState(() => {
 		if (!currentUser?.uid) return "all"
 		const savedFilter = localStorage.getItem(`chef.filter.${currentUser.uid}`)
