@@ -3,7 +3,6 @@ import {
 	Plus,
 	Trash2,
 	Check,
-	Share2,
 	MessageSquare,
 	X,
 	Send,
@@ -17,14 +16,9 @@ import {
 	collection,
 	addDoc,
 	deleteDoc,
-	query,
-	where,
-	getDocs,
 	updateDoc,
 	doc,
 	setDoc,
-	arrayUnion,
-	arrayRemove,
 	getDoc,
 	serverTimestamp,
 } from "firebase/firestore"
@@ -32,7 +26,6 @@ import { useChefBot } from "../hooks/useChefBot"
 import Header from "../components/Header"
 import { useTheme } from "../contexts/ThemeContext"
 import { db } from "../firebase"
-import SharedList from "../components/SharedList"
 import { useAuth } from "../../src/contexts/AuthContext"
 import { listenToItems } from "../services/list.services"
 
@@ -43,12 +36,9 @@ export default function ShoppingListApp() {
 	const [filter, setFilter] = useState("all")
 	const [inputValue, setInputValue] = useState("")
 	const [isChatOpen, setIsChatOpen] = useState(false)
-	const [isShareModalOpen, setIsShareModalOpen] = useState(false)
 	const [deleteModalIsOpen, setDeleteModalIsOpen] = useState(false)
-	const [shareEmail, setShareEmail] = useState("")
 	const { isDark, toggleTheme } = useTheme()
 	const [toast, setToast] = useState(null)
-	const [sharedUsers, setSharedUsers] = useState([])
 	const [swipedItemId, setSwipedItemId] = useState(null)
 	const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 	const [editingItem, setEditingItem] = useState(null)
@@ -111,7 +101,6 @@ export default function ShoppingListApp() {
 				await setDoc(listRef, {
 					ownerId: currentUser.uid,
 					ownerEmail: currentUser.email,
-					sharedWith: [],
 					createdAt: serverTimestamp(),
 				})
 			}
@@ -119,52 +108,6 @@ export default function ShoppingListApp() {
 
 		ensureListExists()
 	}, [currentUser])
-
-	const fetchSharedUsers = async () => {
-		try {
-			const listRef = doc(db, "shoppingLists", currentUser.uid)
-			const listSnap = await getDoc(listRef)
-
-			if (!listSnap.exists()) return
-
-			const sharedWith = listSnap.data().sharedWith || []
-
-			const users = await Promise.all(
-				sharedWith.map(async (uid) => {
-					const userSnap = await getDoc(doc(db, "users", uid))
-					return userSnap.exists()
-						? { uid, email: userSnap.data().email }
-						: null
-				}),
-			)
-
-			setSharedUsers(users.filter(Boolean))
-		} catch (err) {
-			console.error("Failed to fetch shared users:", err)
-		}
-	}
-
-	useEffect(() => {
-		if (isShareModalOpen && currentUser) {
-			fetchSharedUsers()
-		}
-	}, [isShareModalOpen, currentUser])
-
-	const removeAccess = async (uid) => {
-		try {
-			const listRef = doc(db, "shoppingLists", currentUser.uid)
-
-			await updateDoc(listRef, {
-				sharedWith: arrayRemove(uid),
-			})
-
-			setSharedUsers((prev) => prev.filter((u) => u.uid !== uid))
-
-			showToast("Access removed")
-		} catch (err) {
-			console.error("Failed to remove access:", err)
-		}
-	}
 
 	// Actions
 	const addItem = async (e) => {
@@ -292,53 +235,6 @@ export default function ShoppingListApp() {
 		showToast("Cleared all items")
 	}
 
-	const shareListWithEmail = async (currentUser, listId, email) => {
-		// Prevent sharing with own email
-		if (email === currentUser.email.toLowerCase()) {
-			throw new Error("You can't share your list with yourself")
-		}
-
-		// Find the target user by email
-		const q = query(collection(db, "users"), where("email", "==", email))
-		const snapshot = await getDocs(q)
-
-		if (snapshot.empty) {
-			throw new Error("No registered user found with this email")
-		}
-
-		const targetUserDoc = snapshot.docs[0]
-		const targetUserId = targetUserDoc.id
-
-		// Check for duplicate — bail early if already shared
-		const listRef = doc(db, "shoppingLists", listId)
-		const listSnap = await getDoc(listRef)
-		const existingSharedWith = listSnap.exists()
-			? listSnap.data().sharedWith || []
-			: []
-
-		if (existingSharedWith.includes(targetUserId)) {
-			throw new Error(`You're already sharing your list with ${email}`)
-		}
-
-		// Add target user to the sharedWith array
-		await updateDoc(listRef, {
-			sharedWith: arrayUnion(targetUserId),
-		})
-
-		// Create notification for the target user
-		const notifRef = doc(collection(db, "users", targetUserId, "notifications"))
-
-		await setDoc(notifRef, {
-			type: "list_shared",
-			fromUid: currentUser.uid,
-			fromEmail: currentUser.email,
-			listId: listRef.id,
-			listName: "Shared List",
-			timestamp: serverTimestamp(),
-			read: false,
-		})
-	}
-
 	const smartSort = () => {
 		const sorted = [...items].sort((a, b) => {
 			if (a.completed !== b.completed) return a.completed ? 1 : -1
@@ -374,23 +270,6 @@ export default function ShoppingListApp() {
 		await generateResponse(text, systemPrompt)
 	}
 
-	const handleShare = async (e) => {
-		e.preventDefault()
-
-		try {
-			await shareListWithEmail(
-				currentUser,
-				currentUser.uid,
-				shareEmail.trim().toLowerCase(),
-			)
-			showToast("List shared successfully")
-			setShareEmail("") // clear input if you want
-			setIsShareModalOpen(false) // close modal
-		} catch (err) {
-			showToast(err.message || "Unable to share list")
-		}
-	}
-
 	// Filtered Items
 	const filteredItems = items.filter((item) => {
 		if (filter === "active") return !item.completed
@@ -407,14 +286,7 @@ export default function ShoppingListApp() {
 			<Header
 				toggleTheme={toggleTheme}
 				isDark={isDark}
-				openShare={() => setIsShareModalOpen(true)}
 				openChefBot={() => setIsChatOpen(true)}
-				openShareWithEmail={(email) => {
-					setShareEmail(email)
-					setIsShareModalOpen(true)
-				}}
-				setFilter={setFilter}
-				setToast={setToast}
 			/>
 
 			<main className="flex-grow flex overflow-hidden relative">
@@ -482,31 +354,18 @@ export default function ShoppingListApp() {
 								className={clsx(
 									"tab-btn flex-1 py-3 text-sm font-semibold transition-all",
 									filter === "completed"
-										? "bg-accent-500 text-white"
+										? "bg-accent-500 text-white rounded-r-lg"
 										: "hover:bg-gray-100 dark:hover:bg-gray-800",
 								)}
 								data-tab="done">
 								Done
-							</button>
-							<button
-								onClick={() => setFilter("shared")}
-								className={clsx(
-									"tab-btn flex-1 py-3 text-sm font-semibold transition-all",
-									filter === "shared"
-										? "bg-accent-500 text-white rounded-r-lg"
-										: "hover:bg-gray-100 dark:hover:bg-gray-800",
-								)}
-								data-tab="shared">
-								Shared
 							</button>
 						</div>
 					</div>
 
 					{/* List */}
 					<div className="flex-grow overflow-y-auto p-6 max-w-3xl mx-auto w-full space-y-2">
-						{filter === "shared" ? (
-							<SharedList toggleItem={toggleItem} deleteItem={deleteItem} />
-						) : filteredItems.length === 0 ? (
+						{filteredItems.length === 0 ? (
 							<div className="flex flex-col items-center justify-center py-12 text-center opacity-60">
 								<div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-full mb-4">
 									<ShoppingBag className="w-8 h-8 text-gray-400" />
@@ -831,87 +690,6 @@ export default function ShoppingListApp() {
 					</div>
 				)}
 			</main>
-
-			{/* Share Modal */}
-			{isShareModalOpen && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-					<div
-						className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-						onClick={() => setIsShareModalOpen(false)}></div>
-					<div className="relative bg-[#fff] dark:bg-gray-800 border border-[#e5e7eb] dark:border-gray-600 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-fade-in-up">
-						<div className="flex items-center justify-between mb-8">
-							<div>
-								<h2 className="text-lg font-bold text-gray-900 dark:text-white">
-									Share your list
-								</h2>
-								<p className="text-sm text-gray-500 dark:text-gray-400">
-									Grant access to another registered GourmetList user.
-								</p>
-							</div>
-							<button
-								onClick={() => setIsShareModalOpen(false)}
-								className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
-								<X className="w-5 h-5 dark:text-white" />
-							</button>
-						</div>
-
-						{sharedUsers.length > 0 && (
-							<div className="mb-6">
-								<h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-									Already Shared With
-								</h3>
-
-								<div className="space-y-2">
-									{sharedUsers.map((user) => (
-										<div
-											key={user.uid}
-											className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 px-3 py-4 rounded-lg">
-											<span className="text-sm text-gray-800 dark:text-gray-200">
-												{user.email}
-											</span>
-
-											<button
-												onClick={() => removeAccess(user.uid)}
-												className="text-xs text-red-500 hover:text-red-700 font-medium">
-												Remove
-											</button>
-										</div>
-									))}
-								</div>
-							</div>
-						)}
-
-						<form onSubmit={handleShare} className="space-y-4">
-							<div>
-								<label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
-									Email address
-								</label>
-								<input
-									type="email"
-									required
-									value={shareEmail}
-									onChange={(e) => setShareEmail(e.target.value)}
-									className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-accent-500 outline-none dark:bg-gray-700 dark:text-white"
-									placeholder="you@example.com"
-								/>
-							</div>
-							<div className="flex justify-end gap-2">
-								<button
-									type="button"
-									onClick={() => setIsShareModalOpen(false)}
-									className="px-3 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900">
-									Cancel
-								</button>
-								<button
-									type="submit"
-									className="px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold rounded-lg transition-colors">
-									Share access
-								</button>
-							</div>
-						</form>
-					</div>
-				</div>
-			)}
 
 			{/* Edit Item Modal */}
 			{isEditModalOpen && editingItem && (

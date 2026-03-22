@@ -6,22 +6,12 @@ import {
 	onSnapshot,
 	doc,
 	updateDoc,
-	addDoc,
-	arrayUnion,
-	getDocs,
-	getDoc,
-	serverTimestamp,
 	orderBy,
-	arrayRemove,
 } from "firebase/firestore"
 import { db } from "../firebase"
 import { Bell } from "lucide-react"
 
-export default function NotificationBadge({
-	currentUser,
-	setFilter,
-	setToast,
-}) {
+export default function NotificationBadge({ currentUser }) {
 	const [notifications, setNotifications] = useState([])
 	const [isOpen, setIsOpen] = useState(false)
 	const dropdownRef = useRef(null)
@@ -75,96 +65,6 @@ export default function NotificationBadge({
 		}
 	}
 
-	const openSharedList = (notif) => {
-		try {
-			setFilter("shared")
-			setIsOpen(false)
-		} catch (err) {
-			console.error("Failed to open shared list:", err)
-		}
-	}
-
-	const shareBack = async (senderUid) => {
-		try {
-			const listRef = doc(db, "shoppingLists", currentUser.uid)
-			const listSnap = await getDoc(listRef)
-
-			if (!listSnap.exists()) {
-				setToast("Your list does not exist yet")
-				setTimeout(() => setToast(null), 2000)
-				return
-			}
-
-			// Add sender to sharedWith array
-			await updateDoc(listRef, {
-				sharedWith: arrayUnion(senderUid),
-			})
-
-			// Fetch sender's email
-			const senderSnap = await getDoc(doc(db, "users", senderUid))
-			const senderEmail = senderSnap.exists()
-				? senderSnap.data().email
-				: "Unknown user"
-
-			// Notify the sender
-			await addDoc(collection(db, "users", senderUid, "notifications"), {
-				type: "list_shared_back",
-				fromUid: currentUser.uid,
-				fromEmail: currentUser.email,
-				listId: currentUser.uid,
-				timestamp: serverTimestamp(),
-				read: false,
-			})
-
-			// Notify current user that sharing is active
-			await addDoc(collection(db, "users", currentUser.uid, "notifications"), {
-				type: "sharing_active",
-				withUid: senderUid,
-				withEmail: senderEmail, // ✅ now defined
-				listId: currentUser.uid,
-				timestamp: serverTimestamp(),
-				read: false,
-			})
-
-			setToast("List shared back successfully")
-			setTimeout(() => setToast(null), 2000)
-			setIsOpen(false)
-		} catch (err) {
-			console.error("Failed to share back:", err)
-			setTimeout(() => setToast(null), 2000)
-			setToast("Failed to share back")
-		}
-	}
-
-	const stopSharing = async (uid, notifId) => {
-		try {
-			const listRef = doc(db, "shoppingLists", currentUser.uid)
-
-			await updateDoc(listRef, {
-				sharedWith: arrayRemove(uid),
-			})
-
-			await updateDoc(
-				doc(db, "users", currentUser.uid, "notifications", notifId),
-				{ read: true },
-			)
-
-			// Notify the recipient that sharing has stopped
-			await addDoc(collection(db, "users", uid, "notifications"), {
-				type: "sharing_stopped",
-				fromUid: currentUser.uid,
-				fromEmail: currentUser.email,
-				timestamp: serverTimestamp(),
-				read: false,
-			})
-
-			setToast("Sharing stopped")
-			setTimeout(() => setToast(null), 2000)
-		} catch (err) {
-			console.error(err)
-		}
-	}
-
 	return (
 		<div className="relative" ref={dropdownRef}>
 			<button
@@ -185,101 +85,16 @@ export default function NotificationBadge({
 							<div
 								key={notif.id}
 								className="flex flex-col gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
-								{notif.type === "list_shared" && (
-									<>
-										<p className="text-sm text-gray-700 dark:text-gray-200">
-											<span className="font-semibold">
-												{notif.fromEmail || "Someone"}
-											</span>{" "}
-											shared a list with you.
-										</p>
-										<div className="flex flex-wrap gap-2">
-											<button
-												className="px-2 py-[0.35rem] bg-gray-500 text-white rounded text-xs"
-												onClick={() => openSharedList(notif)}>
-												Open List
-											</button>
-											<button
-												className="px-2 py-[0.35rem] bg-gray-500 text-white rounded text-xs"
-												onClick={async () => {
-													await shareBack(notif.fromUid)
-													await markAsRead(notif.id)
-												}}>
-												Share Back
-											</button>
-											<button
-												className="px-2 py-[0.35rem] bg-gray-500 hover:bg-gray-500 text-white rounded text-xs"
-												onClick={() => markAsRead(notif.id)}>
-												Dismiss
-											</button>
-										</div>
-									</>
-								)}
-
-								{notif.type === "list_shared_back" && (
-									<>
-										<p className="text-sm text-gray-700 dark:text-gray-200">
-											<span className="font-semibold">
-												{notif.fromEmail || "Someone"}
-											</span>{" "}
-											shared their list back with you.
-										</p>
-										<div className="flex flex-wrap gap-2">
-											<button
-												className="px-2 py-[0.35rem] bg-gray-500 text-white rounded text-xs"
-												onClick={() => openSharedList(notif)}>
-												Open List
-											</button>
-											<button
-												className="px-2 py-[0.35rem] bg-gray-500 hover:bg-gray-500 text-white rounded text-xs"
-												onClick={() => markAsRead(notif.id)}>
-												Dismiss
-											</button>
-										</div>
-									</>
-								)}
-
-								{notif.type === "sharing_stopped" && (
-									<>
-										<p className="text-sm text-gray-700 dark:text-gray-200">
-											<span className="font-semibold">
-												{notif.fromEmail || "Someone"}
-											</span>{" "}
-											has stopped sharing their list with you.
-										</p>
-										<div className="flex flex-wrap gap-2">
-											<button
-												onClick={() => markAsRead(notif.id)}
-												className="px-2 py-[0.35rem] bg-gray-500 hover:bg-gray-500 text-white text-xs rounded">
-												Dismiss
-											</button>
-										</div>
-									</>
-								)}
-
-								{notif.type === "sharing_active" && (
-									<div className="flex flex-col gap-1">
-										<p className="text-sm text-gray-700 dark:text-gray-200">
-											You are sharing your list with{" "}
-											<span className="font-semibold">
-												{notif.withEmail || "Someone"}
-											</span>
-											.
-										</p>
-										<div className="flex flex-wrap gap-2">
-											<button
-												onClick={() => stopSharing(notif.withUid, notif.id)}
-												className="px-2 py-[0.35rem] bg-gray-500 text-white text-xs rounded">
-												Stop Sharing
-											</button>
-											<button
-												onClick={() => markAsRead(notif.id)}
-												className="px-2 py-[0.35rem] bg-gray-500 hover:bg-gray-500 text-white text-xs rounded">
-												Dismiss
-											</button>
-										</div>
-									</div>
-								)}
+								<p className="text-sm text-gray-700 dark:text-gray-200">
+									{notif.message || notif.title || "Notification"}
+								</p>
+								<div className="flex flex-wrap gap-2">
+									<button
+										className="px-2 py-[0.35rem] bg-gray-500 hover:bg-gray-500 text-white rounded text-xs"
+										onClick={() => markAsRead(notif.id)}>
+										Dismiss
+									</button>
+								</div>
 							</div>
 						))
 					) : (
