@@ -12,26 +12,36 @@ import {
 	updateDoc,
 	where,
 	writeBatch,
+	addDoc,
 } from "firebase/firestore"
 import { db } from "../firebase"
 
-export function listenToItems(listId, callback) {
-	return onSnapshot(
-		collection(db, "shoppingLists", listId, "items"),
-		(snapshot) => {
-			const items = snapshot.docs.map((itemDoc) => ({
-				id: itemDoc.id,
-				...itemDoc.data(),
-			}))
-			callback(items)
-		},
-	)
+export function listenToItems(type, listId, callback) {
+	if (!listId) return () => {}
+
+	const path =
+		type === "private"
+			? collection(db, "shoppingLists", listId, "items")
+			: collection(db, "sharedLists", listId, "items")
+
+	return onSnapshot(path, (snapshot) => {
+		const items = snapshot.docs.map((doc) => ({
+			id: doc.id,
+			...doc.data(),
+		}))
+		callback(items)
+	})
 }
 
 export function listenToPendingInvites(userId, callback) {
+	if (!userId) {
+		callback([])
+		return () => {}
+	}
+
 	const invitesQuery = query(
 		collection(db, "invites"),
-		where("toUid", "==", userId),
+		where("toUid", "==", userId), // ✅ FIXED
 		where("status", "==", "pending"),
 	)
 
@@ -51,61 +61,45 @@ export function listenToPendingInvites(userId, callback) {
 	})
 }
 
-export async function createListInvite({ listId, fromUser, toEmail }) {
-	const normalizedEmail = toEmail.trim().toLowerCase()
+export const createSharedList = async (user) => {
+	const listRef = await addDoc(collection(db, "sharedLists"), {
+		ownerId: user.uid,
+		ownerEmail: user.email,
+		members: [user.uid],
+		name: "Shared List",
+		createdAt: serverTimestamp(),
+	})
 
-	if (!normalizedEmail) {
-		throw new Error("Enter an email address")
-	}
+	return listRef.id
+}
 
-	if (normalizedEmail === fromUser.email?.toLowerCase()) {
-		throw new Error("You cannot invite yourself")
-	}
-
-	const usersQuery = query(
+// 🔍 helper: find user by email
+const findUserByEmail = async (email) => {
+	const q = query(
 		collection(db, "users"),
-		where("email", "==", normalizedEmail),
-		limit(1),
+		where("email", "==", email.toLowerCase()),
 	)
-	const usersSnapshot = await getDocs(usersQuery)
 
-	if (usersSnapshot.empty) {
-		throw new Error("No user found with that email")
+	const snapshot = await getDocs(q)
+
+	if (snapshot.empty) {
+		throw new Error("User not found")
 	}
 
-	const recipientDoc = usersSnapshot.docs[0]
-	const recipientUid = recipientDoc.id
-	const inviteId = `${listId}_${recipientUid}`
-	const listRef = doc(db, "shoppingLists", listId)
-	const inviteRef = doc(db, "invites", inviteId)
+	return snapshot.docs[0].id // this is UID
+}
 
-	const [listSnapshot, inviteSnapshot] = await Promise.all([
-		getDoc(listRef),
-		getDoc(inviteRef),
-	])
+export const createListInvite = async ({ listId, fromUser, toEmail }) => {
+	// ✅ NEW: get UID from email
+	const toUid = await findUserByEmail(toEmail)
 
-	if (!listSnapshot.exists()) {
-		throw new Error("List not found")
-	}
-
-	const members = listSnapshot.data().members || []
-	if (members.includes(recipientUid)) {
-		throw new Error("This user already has access")
-	}
-
-	if (inviteSnapshot.exists() && inviteSnapshot.data().status === "pending") {
-		throw new Error("An invite is already pending for this user")
-	}
-
-	await setDoc(inviteRef, {
+	await addDoc(collection(db, "invites"), {
 		listId,
 		fromUid: fromUser.uid,
-		fromEmail: fromUser.email?.toLowerCase() || "",
-		toUid: recipientUid,
-		toEmail: normalizedEmail,
+		fromEmail: fromUser.email,
+		toUid, // ✅ THIS replaces toEmail
 		status: "pending",
 		createdAt: serverTimestamp(),
-		respondedAt: null,
 	})
 }
 
@@ -113,34 +107,32 @@ export async function acceptInvite(inviteId, currentUser) {
 	const inviteRef = doc(db, "invites", inviteId)
 	const inviteSnapshot = await getDoc(inviteRef)
 
-	if (!inviteSnapshot.exists()) {
-		throw new Error("Invite not found")
-	}
+	if (!inviteSnapshot.exists()) throw new Error("Invite not found")
 
 	const invite = inviteSnapshot.data()
-	if (invite.toUid !== currentUser.uid) {
-		throw new Error("You cannot accept this invite")
-	}
-
-	if (invite.status !== "pending") {
-		throw new Error("This invite has already been handled")
-	}
 
 	const batch = writeBatch(db)
-	batch.update(doc(db, "shoppingLists", invite.listId), {
+
+	// Add user to shared list members
+	const listRef = doc(db, "sharedLists", invite.listId)
+
+	batch.update(listRef, {
 		members: arrayUnion(currentUser.uid),
-		updatedAt: serverTimestamp(),
 	})
+
+	// mark invite accepted
 	batch.update(inviteRef, {
 		status: "accepted",
 		respondedAt: serverTimestamp(),
 	})
 
 	await batch.commit()
+
 	return invite
 }
 
 export async function declineInvite(inviteId, currentUser) {
+	const normalizedCurrentEmail = currentUser.email?.toLowerCase()
 	const inviteRef = doc(db, "invites", inviteId)
 	const inviteSnapshot = await getDoc(inviteRef)
 
@@ -149,7 +141,10 @@ export async function declineInvite(inviteId, currentUser) {
 	}
 
 	const invite = inviteSnapshot.data()
-	if (invite.toUid !== currentUser.uid) {
+	if (
+		invite.toEmail !== normalizedCurrentEmail &&
+		invite.toUid !== currentUser.uid
+	) {
 		throw new Error("You cannot decline this invite")
 	}
 
@@ -163,4 +158,20 @@ export async function declineInvite(inviteId, currentUser) {
 	})
 
 	return invite
+}
+
+export function listenToSharedLists(userId, callback) {
+	const q = query(
+		collection(db, "sharedLists"),
+		where("members", "array-contains", userId),
+	)
+
+	return onSnapshot(q, (snapshot) => {
+		const lists = snapshot.docs.map((doc) => ({
+			id: doc.id,
+			...doc.data(),
+		}))
+
+		callback(lists)
+	})
 }

@@ -14,7 +14,7 @@ import clsx from "clsx"
 import { db } from "../firebase"
 import { useAuth } from "../contexts/AuthContext"
 
-export default function SharedList({ showToast, onInvite }) {
+export default function SharedList({ showToast, onInvite, onSelectList }) {
 	const { currentUser } = useAuth()
 	const [sharedLists, setSharedLists] = useState([])
 	const [loading, setLoading] = useState(true)
@@ -30,7 +30,7 @@ export default function SharedList({ showToast, onInvite }) {
 		let isMounted = true
 
 		const sharedListsQuery = query(
-			collection(db, "shoppingLists"),
+			collection(db, "sharedLists"),
 			where("members", "array-contains", currentUser.uid),
 		)
 
@@ -39,6 +39,14 @@ export default function SharedList({ showToast, onInvite }) {
 				(listDoc) => listDoc.data().ownerId !== currentUser.uid,
 			)
 			const nextListIds = new Set(listDocs.map((listDoc) => listDoc.id))
+
+			// ✅ CLEAN UP OLD LISTENERS
+			itemUnsubscribers.forEach((unsubscribe, id) => {
+				if (!nextListIds.has(id)) {
+					unsubscribe()
+					itemUnsubscribers.delete(id)
+				}
+			})
 
 			const nextLists = await Promise.all(
 				listDocs.map(async (listDoc) => {
@@ -84,7 +92,7 @@ export default function SharedList({ showToast, onInvite }) {
 				if (itemUnsubscribers.has(listDoc.id)) return
 
 				const stopListeningToItems = onSnapshot(
-					collection(db, "shoppingLists", listDoc.id, "items"),
+					collection(db, "sharedLists", listDoc.id, "items"),
 					(itemsSnapshot) => {
 						const items = itemsSnapshot.docs.map((itemDoc) => ({
 							id: itemDoc.id,
@@ -112,7 +120,7 @@ export default function SharedList({ showToast, onInvite }) {
 
 	const toggleSharedItem = async (listId, item) => {
 		try {
-			await updateDoc(doc(db, "shoppingLists", listId, "items", item.id), {
+			await updateDoc(doc(db, "sharedLists", listId, "items", item.id), {
 				completed: !item.completed,
 			})
 		} catch (err) {
@@ -179,6 +187,7 @@ export default function SharedList({ showToast, onInvite }) {
 			{sharedLists.map((list) => (
 				<div
 					key={list.id}
+					onClick={() => onSelectList?.(list.id)}
 					className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
 					<div className="mb-4">
 						<h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">

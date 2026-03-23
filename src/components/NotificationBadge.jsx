@@ -13,7 +13,7 @@ export default function NotificationBadge({ currentUser, showToast }) {
 	const dropdownRef = useRef(null)
 
 	useEffect(() => {
-		if (!currentUser?.uid) {
+		if (!currentUser?.email) {
 			setInvites([])
 			return
 		}

@@ -30,7 +30,11 @@ import SharedList from "../components/SharedList"
 import { useTheme } from "../contexts/ThemeContext"
 import { db } from "../firebase"
 import { useAuth } from "../../src/contexts/AuthContext"
-import { createListInvite, listenToItems } from "../services/list.services"
+import {
+	createListInvite,
+	listenToItems,
+	createSharedList,
+} from "../services/list.services"
 
 const ALLOWED_FILTERS = ["all", "active", "completed", "shared"]
 
@@ -69,14 +73,23 @@ export default function ShoppingListApp() {
 	const [editValue, setEditValue] = useState("")
 	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 	const [deletingItem, setDeletingItem] = useState(null)
+	const [activeListId, setActiveListId] = useState(null)
+	const [mode, setMode] = useState("private") // or "shared"
 	const hydratedFilterUserIdRef = useRef(currentUser?.uid ?? null)
 
-	const usersCollectionRef = collection(
-		db,
-		"shoppingLists",
-		currentUser.uid,
-		"items",
-	)
+	const itemsCollectionRef = useMemo(() => {
+		if (!currentUser?.uid) return null
+
+		if (mode === "private") {
+			return collection(db, "shoppingLists", currentUser.uid, "items")
+		}
+
+		if (mode === "shared" && activeListId) {
+			return collection(db, "sharedLists", activeListId, "items")
+		}
+
+		return null
+	}, [currentUser?.uid, mode, activeListId])
 
 	useEffect(() => {
 		if (!currentUser?.uid) {
@@ -108,12 +121,45 @@ export default function ShoppingListApp() {
 	useEffect(() => {
 		if (!currentUser) return
 
-		const unsubscribe = listenToItems(currentUser.uid, (items) => {
-			setItems(items)
-		})
+		let unsubscribe = null
 
-		return unsubscribe
-	}, [currentUser])
+		const setup = async () => {
+			// ✅ PRIVATE MODE
+			if (mode === "private") {
+				unsubscribe = listenToItems("private", currentUser.uid, setItems)
+				return
+			}
+
+			// ✅ SHARED MODE
+			if (mode === "shared" && activeListId) {
+				const listRef = doc(db, "sharedLists", activeListId)
+				const snap = await getDoc(listRef)
+
+				// 🚨 STOP if list doesn't exist
+				if (!snap.exists()) {
+					console.warn("List does not exist yet")
+					return
+				}
+
+				const members = snap.data()?.members || []
+
+				// 🚨 STOP if user not in list
+				if (!members.includes(currentUser.uid)) {
+					console.warn("User not a member yet")
+					return
+				}
+
+				// ✅ ONLY NOW attach listener
+				unsubscribe = listenToItems("shared", activeListId, setItems)
+			}
+		}
+
+		setup()
+
+		return () => {
+			if (unsubscribe) unsubscribe()
+		}
+	}, [currentUser, mode, activeListId])
 
 	useEffect(() => {
 		if (!currentUser?.uid) {
@@ -121,7 +167,10 @@ export default function ShoppingListApp() {
 			return
 		}
 
-		const listRef = doc(db, "shoppingLists", currentUser.uid)
+		const listRef =
+			mode === "private"
+				? doc(db, "shoppingLists", currentUser.uid)
+				: doc(db, "sharedLists", activeListId)
 
 		return onSnapshot(listRef, async (listSnapshot) => {
 			const memberIds = [
@@ -182,7 +231,10 @@ export default function ShoppingListApp() {
 		if (!currentUser) return
 
 		const ensureListExists = async () => {
-			const listRef = doc(db, "shoppingLists", currentUser.uid)
+			const listRef =
+				mode === "private"
+					? doc(db, "shoppingLists", currentUser.uid)
+					: doc(db, "sharedLists", activeListId)
 			const listSnap = await getDoc(listRef)
 
 			if (!listSnap.exists()) {
@@ -211,6 +263,20 @@ export default function ShoppingListApp() {
 		ensureListExists()
 	}, [currentUser])
 
+	const getItemDoc = (id) => {
+		if (mode === "private") {
+			return doc(db, "shoppingLists", currentUser.uid, "items", id)
+		}
+
+		return doc(db, "sharedLists", activeListId, "items", id)
+	}
+
+	const exitShared = () => {
+		setMode("private")
+		setActiveListId(null)
+		setFilter("all")
+	}
+
 	// Actions
 	const addItem = async (e) => {
 		e.preventDefault()
@@ -218,12 +284,11 @@ export default function ShoppingListApp() {
 		const newItem = {
 			name: inputValue.trim(),
 			completed: false,
-			createdAt: Date.now(),
+			createdBy: currentUser.uid,
+			createdByEmail: currentUser.email,
 		}
 
-		const docRef = await addDoc(usersCollectionRef, newItem)
-
-		setItems([{ id: docRef.id, ...newItem }, ...items])
+		if (!itemsCollectionRef) return
 
 		setInputValue("")
 		showToast(`Added ${newItem.name}`)
@@ -233,25 +298,17 @@ export default function ShoppingListApp() {
 		const item = items.find((i) => i.id === id)
 		if (!item) return
 
-		const itemDoc = doc(
-			db,
-			"shoppingLists",
-			currentUser.uid,
-			"items",
-			id, // ✅ dynamic
-		)
+		const itemDoc = getItemDoc(id)
 
 		const updatedItem = { completed: !item.completed }
 
-		await updateDoc(itemDoc, {
-			completed: !item.completed,
-		})
+		await updateDoc(itemDoc, { completed: !item.completed })
 
 		setItems(items.map((i) => (i.id === id ? { ...i, ...updatedItem } : i)))
 	}
 
 	const deleteItem = async (id) => {
-		await deleteDoc(doc(db, "shoppingLists", currentUser.uid, "items", id))
+		await deleteDoc(getItemDoc(id))
 		setItems(items.filter((item) => item.id !== id))
 		setIsDeleteModalOpen(false)
 		setDeletingItem(null)
@@ -269,13 +326,7 @@ export default function ShoppingListApp() {
 
 	const saveEdit = async () => {
 		if (!editValue.trim() || !editingItem) return
-		const itemDoc = doc(
-			db,
-			"shoppingLists",
-			currentUser.uid,
-			"items",
-			editingItem.id,
-		)
+		const itemDoc = getItemDoc(editingItem.id)
 		await updateDoc(itemDoc, { name: editValue.trim() })
 		setItems(
 			items.map((i) =>
@@ -311,9 +362,7 @@ export default function ShoppingListApp() {
 		}
 
 		await Promise.all(
-			completedItems.map((item) =>
-				deleteDoc(doc(db, "shoppingLists", currentUser.uid, "items", item.id)),
-			),
+			completedItems.map((item) => deleteDoc(getItemDoc(item.id))),
 		)
 
 		setItems((prev) => prev.filter((item) => !item.completed))
@@ -326,11 +375,7 @@ export default function ShoppingListApp() {
 			return
 		}
 
-		await Promise.all(
-			items.map((item) =>
-				deleteDoc(doc(db, "shoppingLists", currentUser.uid, "items", item.id)),
-			),
-		)
+		await Promise.all(items.map((item) => deleteDoc(getItemDoc(item.id))))
 
 		setItems([])
 		setDeleteModalIsOpen(false)
@@ -358,8 +403,17 @@ export default function ShoppingListApp() {
 
 		try {
 			setShareLoading(true)
+			let listId = activeListId
+
+			// ✅ If user is in private mode → create shared list first
+			if (mode === "private") {
+				listId = await createSharedList(currentUser)
+				setActiveListId(listId)
+				setMode("shared")
+			}
+
 			await createListInvite({
-				listId: currentUser.uid,
+				listId,
 				fromUser: currentUser,
 				toEmail: shareEmail,
 			})
@@ -453,7 +507,11 @@ export default function ShoppingListApp() {
 					<div className="bg-transparent p-4 max-w-3xl mx-auto w-full">
 						<div className="flex bg-white rounded-xl shadow-sm border border-gray-100 z-20 mx-2">
 							<button
-								onClick={() => setFilter("all")}
+								onClick={() => {
+									setFilter("all")
+									setMode("private")
+									setActiveListId(null)
+								}}
 								className={clsx(
 									"tab-btn flex-1 py-3 text-sm font-semibold transition-all",
 									filter === "all"
@@ -464,7 +522,11 @@ export default function ShoppingListApp() {
 								All
 							</button>
 							<button
-								onClick={() => setFilter("active")}
+								onClick={() => {
+									setFilter("active")
+									setMode("private")
+									setActiveListId(null)
+								}}
 								className={clsx(
 									"tab-btn flex-1 py-3 text-sm font-semibold transition-all",
 									filter === "active"
@@ -475,7 +537,11 @@ export default function ShoppingListApp() {
 								To Buy
 							</button>
 							<button
-								onClick={() => setFilter("completed")}
+								onClick={() => {
+									setFilter("completed")
+									setMode("private")
+									setActiveListId(null)
+								}}
 								className={clsx(
 									"tab-btn flex-1 py-3 text-sm font-semibold transition-all",
 									filter === "completed"
@@ -486,7 +552,10 @@ export default function ShoppingListApp() {
 								Done
 							</button>
 							<button
-								onClick={() => setFilter("shared")}
+								onClick={() => {
+									setFilter("shared")
+									setMode("shared")
+								}}
 								className={clsx(
 									"tab-btn flex-1 py-3 text-sm font-semibold transition-all",
 									filter === "shared"
@@ -502,10 +571,36 @@ export default function ShoppingListApp() {
 					{/* List */}
 					<div className="flex-grow overflow-y-auto p-6 max-w-3xl mx-auto w-full space-y-2">
 						{filter === "shared" ? (
-							<SharedList
-								showToast={showToast}
-								onInvite={() => setIsShareModalOpen(true)}
-							/>
+							<div>
+								{/* ✅ Show back button ONLY when inside a specific shared list */}
+								{mode === "shared" && activeListId && (
+									<button
+										onClick={exitShared}
+										className="mb-4 text-sm font-medium text-accent-600 hover:underline">
+										← Back to your list
+									</button>
+								)}
+
+								<SharedList
+									showToast={showToast}
+									onInvite={() => setIsShareModalOpen(true)}
+									onSelectList={async (listId) => {
+										const snap = await getDoc(doc(db, "sharedLists", listId))
+
+										if (!snap.exists()) return
+
+										const members = snap.data()?.members || []
+
+										if (!members.includes(currentUser.uid)) {
+											showToast("You don’t have access yet")
+											return
+										}
+
+										setActiveListId(listId)
+										setMode("shared")
+									}}
+								/>
+							</div>
 						) : filteredItems.length === 0 ? (
 							<div className="flex flex-col items-center justify-center py-12 text-center opacity-60">
 								<div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-full mb-4">
