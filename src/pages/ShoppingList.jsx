@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from "react"
+import React, { useMemo, useState, useEffect, useRef } from "react"
 import {
 	Plus,
 	Trash2,
 	Check,
 	MessageSquare,
+	Share2,
 	X,
 	Send,
 	AlertCircle,
@@ -20,16 +21,18 @@ import {
 	doc,
 	setDoc,
 	getDoc,
+	onSnapshot,
 	serverTimestamp,
 } from "firebase/firestore"
 import { useChefBot } from "../hooks/useChefBot"
 import Header from "../components/Header"
+import SharedList from "../components/SharedList"
 import { useTheme } from "../contexts/ThemeContext"
 import { db } from "../firebase"
 import { useAuth } from "../../src/contexts/AuthContext"
-import { listenToItems } from "../services/list.services"
+import { createListInvite, listenToItems } from "../services/list.services"
 
-const ALLOWED_FILTERS = ["all", "active", "completed"]
+const ALLOWED_FILTERS = ["all", "active", "completed", "shared"]
 
 const getValidFilter = (value) =>
 	ALLOWED_FILTERS.includes(value) ? value : "all"
@@ -53,6 +56,10 @@ export default function ShoppingListApp() {
 	})
 	const [inputValue, setInputValue] = useState("")
 	const [isChatOpen, setIsChatOpen] = useState(false)
+	const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+	const [shareEmail, setShareEmail] = useState("")
+	const [shareLoading, setShareLoading] = useState(false)
+	const [listMembers, setListMembers] = useState([])
 	const [deleteModalIsOpen, setDeleteModalIsOpen] = useState(false)
 	const { isDark, toggleTheme } = useTheme()
 	const [toast, setToast] = useState(null)
@@ -108,6 +115,42 @@ export default function ShoppingListApp() {
 		return unsubscribe
 	}, [currentUser])
 
+	useEffect(() => {
+		if (!currentUser?.uid) {
+			setListMembers([])
+			return
+		}
+
+		const listRef = doc(db, "shoppingLists", currentUser.uid)
+
+		return onSnapshot(listRef, async (listSnapshot) => {
+			const memberIds = [
+				...new Set(listSnapshot.data()?.members || [currentUser.uid]),
+			]
+
+			const members = await Promise.all(
+				memberIds.map(async (uid) => {
+					if (uid === currentUser.uid) {
+						return {
+							uid,
+							email: currentUser.email?.toLowerCase() || "You",
+						}
+					}
+
+					const userSnapshot = await getDoc(doc(db, "users", uid))
+					return {
+						uid,
+						email: userSnapshot.exists()
+							? userSnapshot.data().email
+							: "Unknown member",
+					}
+				}),
+			)
+
+			setListMembers(members)
+		})
+	}, [currentUser?.uid, currentUser?.email])
+
 	// AI Hook
 	const {
 		isReady,
@@ -146,8 +189,22 @@ export default function ShoppingListApp() {
 				await setDoc(listRef, {
 					ownerId: currentUser.uid,
 					ownerEmail: currentUser.email,
+					members: [currentUser.uid],
 					createdAt: serverTimestamp(),
+					updatedAt: serverTimestamp(),
 				})
+				return
+			}
+
+			if (!Array.isArray(listSnap.data().members)) {
+				await setDoc(
+					listRef,
+					{
+						members: [currentUser.uid],
+						updatedAt: serverTimestamp(),
+					},
+					{ merge: true },
+				)
 			}
 		}
 
@@ -294,6 +351,27 @@ export default function ShoppingListApp() {
 		setTimeout(() => setToast(null), 2000)
 	}
 
+	const handleShare = async (e) => {
+		e.preventDefault()
+
+		if (!currentUser?.uid) return
+
+		try {
+			setShareLoading(true)
+			await createListInvite({
+				listId: currentUser.uid,
+				fromUser: currentUser,
+				toEmail: shareEmail,
+			})
+			setShareEmail("")
+			showToast("Invite sent")
+		} catch (err) {
+			showToast(err.message || "Unable to send invite")
+		} finally {
+			setShareLoading(false)
+		}
+	}
+
 	// Chat Actions
 	const handleChatSubmit = async (e) => {
 		e.preventDefault()
@@ -332,6 +410,8 @@ export default function ShoppingListApp() {
 				toggleTheme={toggleTheme}
 				isDark={isDark}
 				openChefBot={() => setIsChatOpen(true)}
+				openShare={() => setIsShareModalOpen(true)}
+				showToast={showToast}
 			/>
 
 			<main className="flex-grow flex overflow-hidden relative">
@@ -399,18 +479,34 @@ export default function ShoppingListApp() {
 								className={clsx(
 									"tab-btn flex-1 py-3 text-sm font-semibold transition-all",
 									filter === "completed"
-										? "bg-accent-500 text-white rounded-r-lg"
+										? "bg-accent-500 text-white"
 										: "hover:bg-gray-100 dark:hover:bg-gray-800",
 								)}
 								data-tab="done">
 								Done
+							</button>
+							<button
+								onClick={() => setFilter("shared")}
+								className={clsx(
+									"tab-btn flex-1 py-3 text-sm font-semibold transition-all",
+									filter === "shared"
+										? "bg-accent-500 text-white rounded-r-lg"
+										: "hover:bg-gray-100 dark:hover:bg-gray-800",
+								)}
+								data-tab="shared">
+								Shared
 							</button>
 						</div>
 					</div>
 
 					{/* List */}
 					<div className="flex-grow overflow-y-auto p-6 max-w-3xl mx-auto w-full space-y-2">
-						{filteredItems.length === 0 ? (
+						{filter === "shared" ? (
+							<SharedList
+								showToast={showToast}
+								onInvite={() => setIsShareModalOpen(true)}
+							/>
+						) : filteredItems.length === 0 ? (
 							<div className="flex flex-col items-center justify-center py-12 text-center opacity-60">
 								<div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-full mb-4">
 									<ShoppingBag className="w-8 h-8 text-gray-400" />
@@ -549,33 +645,35 @@ export default function ShoppingListApp() {
 						)}
 					</div>
 
-					<div className="bg-white border-t border-gray-200 p-4">
-						<div className="mx-auto max-w-full sm:max-w-3xl lg:max-w-4xl">
-							<div className="flex justify-between items-start sm:items-center">
-								{/* Left stack */}
-								<div className="flex flex-col gap-3 sm:flex-row sm:gap-3">
-									<button
-										onClick={smartSort}
-										className="text-sm font-medium dark:text-gray-50 dark:bg-gray-800 dark:hover:text-accent-300 text-gray-600 bg-[#F3F4F6] hover:text-accent-700 hover:bg-accent-50 px-4 py-2 rounded-lg transition-colors">
-										Smart Sort
-									</button>
+					{filter !== "shared" && (
+						<div className="bg-white border-t border-gray-200 p-4">
+							<div className="mx-auto max-w-full sm:max-w-3xl lg:max-w-4xl">
+								<div className="flex justify-between items-start sm:items-center">
+									{/* Left stack */}
+									<div className="flex flex-col gap-3 sm:flex-row sm:gap-3">
+										<button
+											onClick={smartSort}
+											className="text-sm font-medium dark:text-gray-50 dark:bg-gray-800 dark:hover:text-accent-300 text-gray-600 bg-[#F3F4F6] hover:text-accent-700 hover:bg-accent-50 px-4 py-2 rounded-lg transition-colors">
+											Smart Sort
+										</button>
 
+										<button
+											onClick={clearCompleted}
+											className="text-sm font-medium dark:text-gray-50 dark:bg-gray-800 dark:hover:text-teal-300 text-gray-600 hover:text-teal-700 bg-[#F3F4F6] hover:bg-teal-50 px-4 py-2 rounded-lg transition-colors">
+											Clear Completed
+										</button>
+									</div>
+
+									{/* Right button */}
 									<button
-										onClick={clearCompleted}
-										className="text-sm font-medium dark:text-gray-50 dark:bg-gray-800 dark:hover:text-teal-300 text-gray-600 hover:text-teal-700 bg-[#F3F4F6] hover:bg-teal-50 px-4 py-2 rounded-lg transition-colors">
-										Clear Completed
+										onClick={() => setDeleteModalIsOpen(true)}
+										className="text-sm font-medium dark:text-red-400 text-red-500 bg-gray-100 hover:text-red-700 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors sm:ml-auto">
+										Clear All
 									</button>
 								</div>
-
-								{/* Right button */}
-								<button
-									onClick={() => setDeleteModalIsOpen(true)}
-									className="text-sm font-medium dark:text-red-400 text-red-500 bg-gray-100 hover:text-red-700 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors sm:ml-auto">
-									Clear All
-								</button>
 							</div>
 						</div>
-					</div>
+					)}
 				</section>
 
 				{/* Chat Sidebar */}
@@ -735,6 +833,69 @@ export default function ShoppingListApp() {
 					</div>
 				)}
 			</main>
+
+			{isShareModalOpen && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+					<div
+						className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+						onClick={() => setIsShareModalOpen(false)}></div>
+					<div className="relative w-full max-w-lg rounded-2xl border border-[#e5e7eb] bg-[#fff] p-6 shadow-2xl dark:border-gray-600 dark:bg-gray-800">
+						<div className="mb-6 flex items-center justify-between">
+							<div>
+								<h2 className="text-lg font-bold text-gray-900 dark:text-white">
+									Share your shopping list
+								</h2>
+								<p className="text-sm text-gray-500 dark:text-gray-400">
+									Invite someone by email to collaborate in real time.
+								</p>
+							</div>
+							<button
+								onClick={() => setIsShareModalOpen(false)}
+								className="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-gray-700">
+								<X className="h-5 w-5 dark:text-white" />
+							</button>
+						</div>
+
+						<form onSubmit={handleShare} className="space-y-4">
+							<label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+								Recipient email
+							</label>
+							<div className="flex gap-2">
+								<input
+									type="email"
+									required
+									value={shareEmail}
+									onChange={(e) => setShareEmail(e.target.value)}
+									placeholder="friend@example.com"
+									className="flex-1 rounded-xl border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-accent-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								/>
+								<button
+									type="submit"
+									disabled={shareLoading}
+									className="inline-flex items-center gap-2 rounded-xl bg-accent-600 px-4 py-3 text-sm font-semibold text-white hover:bg-accent-700 disabled:opacity-50">
+									<Share2 className="h-4 w-4" />
+									{shareLoading ? "Sending..." : "Send invite"}
+								</button>
+							</div>
+						</form>
+
+						<div className="mt-6">
+							<h3 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+								Current members
+							</h3>
+							<div className="flex flex-wrap gap-2">
+								{listMembers.map((member) => (
+									<span
+										key={member.uid}
+										className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+										{member.email}
+									</span>
+								))}
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
 
 			{/* Edit Item Modal */}
 			{isEditModalOpen && editingItem && (

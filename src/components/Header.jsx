@@ -1,9 +1,15 @@
 import { Link } from "react-router-dom"
-import { MessageSquare, Moon, Sun, ShoppingBag } from "lucide-react"
+import { MessageSquare, Moon, Share2, Sun, ShoppingBag } from "lucide-react"
 import NotificationBadge from "./NotificationBadge"
 import { useAuth } from "../contexts/AuthContext"
 
-export default function Header({ openChefBot, toggleTheme, isDark }) {
+export default function Header({
+	openChefBot,
+	toggleTheme,
+	isDark,
+	openShare,
+	showToast,
+}) {
 	const { currentUser } = useAuth()
 	return (
 		<header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 h-16 flex-shrink-0 z-20 transition-colors">
@@ -36,7 +42,14 @@ export default function Header({ openChefBot, toggleTheme, isDark }) {
 						<span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent-500 rounded-full"></span>
 					</button>
 
-					<NotificationBadge currentUser={currentUser} />
+					<button
+						onClick={openShare}
+						className="btn-icon dark:text-gray-300 dark:hover:bg-gray-800"
+						title="Share list">
+						<Share2 className="w-6 h-6" />
+					</button>
+
+					<NotificationBadge currentUser={currentUser} showToast={showToast} />
 				</div>
 			</div>
 		</header>
