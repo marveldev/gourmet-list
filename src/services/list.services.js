@@ -102,6 +102,7 @@ export async function acceptInvite(inviteId, currentUser) {
 	const invite = inviteSnapshot.data()
 
 	const batch = writeBatch(db)
+	const notificationRef = doc(collection(db, "notifications"))
 
 	// Add user to shared list members
 	const listRef = doc(db, "sharedLists", invite.listId)
@@ -114,6 +115,16 @@ export async function acceptInvite(inviteId, currentUser) {
 	batch.update(inviteRef, {
 		status: "accepted",
 		respondedAt: serverTimestamp(),
+	})
+
+	batch.set(notificationRef, {
+		type: "inviteAccepted",
+		listId: invite.listId,
+		fromUid: currentUser.uid,
+		fromEmail: currentUser.email,
+		toUid: invite.fromUid,
+		createdAt: serverTimestamp(),
+		read: false,
 	})
 
 	await batch.commit()
@@ -163,5 +174,39 @@ export function listenToSharedLists(userId, callback) {
 		}))
 
 		callback(lists)
+	})
+}
+
+export function listenToNotifications(userId, callback) {
+	if (!userId) {
+		callback([])
+		return () => {}
+	}
+
+	const notificationsQuery = query(
+		collection(db, "notifications"),
+		where("toUid", "==", userId),
+		where("read", "==", false),
+	)
+
+	return onSnapshot(notificationsQuery, (snapshot) => {
+		const notifications = snapshot.docs
+			.map((notificationDoc) => ({
+				id: notificationDoc.id,
+				...notificationDoc.data(),
+			}))
+			.sort((a, b) => {
+				const aSeconds = a.createdAt?.seconds || 0
+				const bSeconds = b.createdAt?.seconds || 0
+				return bSeconds - aSeconds
+			})
+
+		callback(notifications)
+	})
+}
+
+export async function dismissNotification(notificationId) {
+	await updateDoc(doc(db, "notifications", notificationId), {
+		read: true,
 	})
 }

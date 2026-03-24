@@ -48,6 +48,13 @@ service cloud.firestore {
         && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
     }
 
+    match /notifications/{notificationId} {
+      allow create: if signedIn() && request.resource.data.fromUid == request.auth.uid;
+      allow read: if signedIn()
+        && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow update: if signedIn() && resource.data.toUid == request.auth.uid;
+    }
+
     match /users/{userId} {
       allow read: if signedIn();
       allow create, update: if signedIn() && request.auth.uid == userId;
