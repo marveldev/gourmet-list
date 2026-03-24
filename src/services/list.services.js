@@ -73,31 +73,12 @@ export const createSharedList = async (user) => {
 	return listRef.id
 }
 
-// 🔍 helper: find user by email
-const findUserByEmail = async (email) => {
-	const q = query(
-		collection(db, "users"),
-		where("email", "==", email.toLowerCase()),
-	)
-
-	const snapshot = await getDocs(q)
-
-	if (snapshot.empty) {
-		throw new Error("User not found")
-	}
-
-	return snapshot.docs[0].id // this is UID
-}
-
-export const createListInvite = async ({ listId, fromUser, toEmail }) => {
-	// ✅ NEW: get UID from email
-	const toUid = await findUserByEmail(toEmail)
-
+export const createListInvite = async ({ listId, fromUser, toUid }) => {
 	await addDoc(collection(db, "invites"), {
 		listId,
 		fromUid: fromUser.uid,
 		fromEmail: fromUser.email,
-		toUid, // ✅ THIS replaces toEmail
+		toUid,
 		status: "pending",
 		createdAt: serverTimestamp(),
 	})

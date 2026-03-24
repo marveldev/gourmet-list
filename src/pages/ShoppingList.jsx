@@ -20,6 +20,9 @@ import {
 	updateDoc,
 	doc,
 	setDoc,
+	query,
+	where,
+	getDocs,
 	getDoc,
 	onSnapshot,
 	serverTimestamp,
@@ -403,20 +406,37 @@ export default function ShoppingListApp() {
 
 		try {
 			setShareLoading(true)
+
 			let listId = activeListId
 
-			// ✅ If user is in private mode → create shared list first
+			// create shared list if needed
 			if (mode === "private") {
 				listId = await createSharedList(currentUser)
 				setActiveListId(listId)
 				setMode("shared")
 			}
 
+			// 🔥 FIND USER UID FROM EMAIL (HERE, not in service)
+			const q = query(
+				collection(db, "users"),
+				where("email", "==", shareEmail.toLowerCase()),
+			)
+
+			const snapshot = await getDocs(q)
+
+			if (snapshot.empty) {
+				throw new Error("User not found")
+			}
+
+			const toUid = snapshot.docs[0].id
+
+			// ✅ NOW SEND UID
 			await createListInvite({
 				listId,
 				fromUser: currentUser,
-				toEmail: shareEmail,
+				toUid,
 			})
+
 			setShareEmail("")
 			showToast("Invite sent")
 		} catch (err) {
