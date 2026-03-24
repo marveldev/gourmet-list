@@ -13,6 +13,7 @@ import { Check, Plus, Trash2 } from "lucide-react"
 import clsx from "clsx"
 import { db } from "../firebase"
 import { useAuth } from "../contexts/AuthContext"
+import { leaveSharedList } from "../services/list.services"
 
 export default function SharedList({ showToast, onInvite, onSelectList }) {
 	const { currentUser } = useAuth()
@@ -138,6 +139,16 @@ export default function SharedList({ showToast, onInvite, onSelectList }) {
 		}
 	}
 
+	const handleLeaveList = async (listId) => {
+		try {
+			await leaveSharedList(listId, currentUser)
+			showToast?.("You left the list")
+		} catch (err) {
+			console.error(err)
+			showToast?.("Unable to leave list")
+		}
+	}
+
 	if (loading) {
 		return (
 			<div className="p-4 text-center text-gray-500 dark:text-gray-400">
@@ -195,11 +206,18 @@ export default function SharedList({ showToast, onInvite, onSelectList }) {
 						</h3>
 						<ul className="space-y-1">
 							{list.members.map((member) => (
-								<li
+								<div
 									key={member.uid}
-									className="text-sm text-gray-700 dark:text-gray-200">
-									{member.email}
-								</li>
+									className="flex items-center justify-between">
+									<li className="text-sm text-gray-700 dark:text-gray-200">
+										{member.email}
+									</li>
+									<button
+										onClick={() => handleLeaveList(list.id)}
+										className="text-sm text-red-500 hover:text-red-600 font-medium">
+										Leave List
+									</button>
+								</div>
 							))}
 						</ul>
 					</div>

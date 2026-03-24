@@ -13,6 +13,7 @@ import {
 	where,
 	writeBatch,
 	addDoc,
+	arrayRemove,
 } from "firebase/firestore"
 import { db } from "../firebase"
 
@@ -30,6 +31,14 @@ export function listenToItems(type, listId, callback) {
 			...doc.data(),
 		}))
 		callback(items)
+	})
+}
+
+export async function leaveSharedList(listId, currentUser) {
+	const listRef = doc(db, "sharedLists", listId)
+
+	await updateDoc(listRef, {
+		members: arrayRemove(currentUser.uid),
 	})
 }
 
