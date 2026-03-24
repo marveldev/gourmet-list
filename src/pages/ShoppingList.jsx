@@ -447,6 +447,7 @@ export default function ShoppingListApp() {
 				toUid,
 			})
 
+			setIsShareModalOpen(false)
 			setShareEmail("")
 			showToast("Invite sent")
 		} catch (err) {

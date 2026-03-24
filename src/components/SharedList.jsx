@@ -151,15 +151,25 @@ export default function SharedList({ showToast, onInvite, onSelectList }) {
 
 	if (loading) {
 		return (
-			<div className="p-4 text-center text-gray-500 dark:text-gray-400">
-				Loading shared lists…
+			<div className="space-y-6 py-12 text-center">
+				<div>
+					<div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+						<Plus className="h-6 w-6 text-gray-400" />
+					</div>
+					<h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+						Shared with you
+					</h2>
+					<p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+						Loading shared lists…
+					</p>
+				</div>
 			</div>
 		)
 	}
 
 	if (sharedLists.length === 0) {
 		return (
-			<div className="space-y-6 py-12 text-center opacity-70">
+			<div className="space-y-6 py-12 text-center">
 				<div>
 					<div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
 						<Plus className="h-6 w-6 text-gray-400" />
