@@ -293,8 +293,18 @@ export default function ShoppingListApp() {
 
 		if (!itemsCollectionRef) return
 
-		setInputValue("")
-		showToast(`Added ${newItem.name}`)
+		try {
+			await addDoc(itemsCollectionRef, {
+				...newItem,
+				createdAt: serverTimestamp(),
+			})
+
+			setInputValue("")
+			showToast(`Added ${newItem.name}`)
+		} catch (err) {
+			console.error("Failed to add item:", err)
+			showToast("Unable to add item")
+		}
 	}
 
 	const toggleItem = async (id) => {
