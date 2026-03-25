@@ -201,7 +201,7 @@ export default function ShoppingListApp() {
 
 			setListMembers(members)
 		})
-	}, [currentUser?.uid, currentUser?.email])
+	}, [currentUser?.uid, currentUser?.email, mode, activeListId])
 
 	// AI Hook
 	const {

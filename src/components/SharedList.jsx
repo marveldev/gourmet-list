@@ -36,9 +36,7 @@ export default function SharedList({ showToast, onInvite, onSelectList }) {
 		)
 
 		const unsubscribe = onSnapshot(sharedListsQuery, async (snapshot) => {
-			const listDocs = snapshot.docs.filter(
-				(listDoc) => listDoc.data().ownerId !== currentUser.uid,
-			)
+			const listDocs = snapshot.docs
 			const nextListIds = new Set(listDocs.map((listDoc) => listDoc.id))
 
 			// ✅ CLEAN UP OLD LISTENERS
@@ -216,20 +214,29 @@ export default function SharedList({ showToast, onInvite, onSelectList }) {
 						</h3>
 						<ul className="space-y-1">
 							{list.members.map((member) => (
-								<div
+								<li
 									key={member.uid}
-									className="flex items-center justify-between">
-									<li className="text-sm text-gray-700 dark:text-gray-200">
-										{member.email}
-									</li>
-									<button
-										onClick={() => handleLeaveList(list.id)}
-										className="text-sm text-red-500 hover:text-red-600 font-medium">
-										Leave List
-									</button>
-								</div>
+									className="text-sm text-gray-700 dark:text-gray-200">
+									{member.email}
+									{member.uid === currentUser.uid &&
+										list.ownerId === currentUser.uid && (
+											<span className="ml-2 text-xs text-accent-600 font-medium">
+												(you · owner)
+											</span>
+										)}
+								</li>
 							))}
 						</ul>
+						{list.ownerId !== currentUser.uid && (
+							<button
+								onClick={(e) => {
+									e.stopPropagation()
+									handleLeaveList(list.id)
+								}}
+								className="mt-2 text-sm text-red-500 hover:text-red-600 font-medium">
+								Leave List
+							</button>
+						)}
 					</div>
 
 					<div className="space-y-2">
