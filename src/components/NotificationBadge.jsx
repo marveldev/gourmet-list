@@ -86,6 +86,28 @@ export default function NotificationBadge({ currentUser, showToast }) {
 
 	const unreadCount = invites.length + notifications.length
 
+	const getNotificationMessage = (notification) => {
+		if (notification.type === "inviteAccepted") {
+			return (
+				<>
+					<span className="font-semibold">{notification.fromEmail}</span> accepted
+					your invite
+				</>
+			)
+		}
+
+		if (notification.type === "memberLeft") {
+			return (
+				<>
+					<span className="font-semibold">{notification.fromEmail}</span> left your
+					shared list
+				</>
+			)
+		}
+
+		return "You have a new notification"
+	}
+
 	return (
 		<div className="relative" ref={dropdownRef}>
 			<button
@@ -133,16 +155,7 @@ export default function NotificationBadge({ currentUser, showToast }) {
 									key={notification.id}
 									className="flex flex-col gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
 									<p className="text-sm text-gray-700 dark:text-gray-200">
-										{notification.type === "inviteAccepted" ? (
-											<>
-												<span className="font-semibold">
-													{notification.fromEmail}
-												</span>{" "}
-												accepted your invite
-											</>
-										) : (
-											"You have a new notification"
-										)}
+										{getNotificationMessage(notification)}
 									</p>
 									<div className="flex flex-wrap gap-2">
 										<button

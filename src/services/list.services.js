@@ -44,10 +44,34 @@ export function listenToItems(type, listId, callback, onError) {
 
 export async function leaveSharedList(listId, currentUser) {
 	const listRef = doc(db, "sharedLists", listId)
+	const listSnapshot = await getDoc(listRef)
 
-	await updateDoc(listRef, {
+	if (!listSnapshot.exists()) {
+		throw new Error("Shared list not found")
+	}
+
+	const list = listSnapshot.data()
+	const ownerId = list.ownerId
+	const batch = writeBatch(db)
+
+	batch.update(listRef, {
 		members: arrayRemove(currentUser.uid),
 	})
+
+	if (ownerId && ownerId !== currentUser.uid) {
+		const notificationRef = doc(collection(db, "notifications"))
+		batch.set(notificationRef, {
+			type: "memberLeft",
+			listId,
+			fromUid: currentUser.uid,
+			fromEmail: currentUser.email,
+			toUid: ownerId,
+			createdAt: serverTimestamp(),
+			read: false,
+		})
+	}
+
+	await batch.commit()
 }
 
 export function listenToPendingInvites(userId, callback) {
