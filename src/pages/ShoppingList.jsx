@@ -153,7 +153,12 @@ export default function ShoppingListApp() {
 				}
 
 				// ✅ ONLY NOW attach listener
-				unsubscribe = listenToItems("shared", activeListId, setItems)
+				unsubscribe = listenToItems("shared", activeListId, setItems, (err) => {
+					console.error("Shared items listener error:", err)
+					setItems([])
+					setActiveListId(null)
+					setMode("private")
+				})
 			}
 		}
 
@@ -170,37 +175,53 @@ export default function ShoppingListApp() {
 			return
 		}
 
+		// Don't subscribe when in shared mode but no list is selected yet
+		if (mode === "shared" && !activeListId) return
+
 		const listRef =
 			mode === "private"
 				? doc(db, "shoppingLists", currentUser.uid)
 				: doc(db, "sharedLists", activeListId)
 
-		return onSnapshot(listRef, async (listSnapshot) => {
-			const memberIds = [
-				...new Set(listSnapshot.data()?.members || [currentUser.uid]),
-			]
+		return onSnapshot(
+			listRef,
+			async (listSnapshot) => {
+				// List was deleted — clean up and bail
+				if (!listSnapshot.exists()) {
+					setListMembers([])
+					return
+				}
 
-			const members = await Promise.all(
-				memberIds.map(async (uid) => {
-					if (uid === currentUser.uid) {
+				const memberIds = [
+					...new Set(listSnapshot.data()?.members || [currentUser.uid]),
+				]
+
+				const members = await Promise.all(
+					memberIds.map(async (uid) => {
+						if (uid === currentUser.uid) {
+							return {
+								uid,
+								email: currentUser.email?.toLowerCase() || "You",
+							}
+						}
+
+						const userSnapshot = await getDoc(doc(db, "users", uid))
 						return {
 							uid,
-							email: currentUser.email?.toLowerCase() || "You",
+							email: userSnapshot.exists()
+								? userSnapshot.data().email
+								: "Unknown member",
 						}
-					}
+					}),
+				)
 
-					const userSnapshot = await getDoc(doc(db, "users", uid))
-					return {
-						uid,
-						email: userSnapshot.exists()
-							? userSnapshot.data().email
-							: "Unknown member",
-					}
-				}),
-			)
-
-			setListMembers(members)
-		})
+				setListMembers(members)
+			},
+			(err) => {
+				console.error("List members listener error:", err)
+				setListMembers([])
+			},
+		)
 	}, [currentUser?.uid, currentUser?.email, mode, activeListId])
 
 	// AI Hook
@@ -615,6 +636,11 @@ export default function ShoppingListApp() {
 								<SharedList
 									showToast={showToast}
 									onInvite={() => setIsShareModalOpen(true)}
+									onDeleteList={() => {
+										setItems([])
+										setActiveListId(null)
+										setMode("private")
+									}}
 									onSelectList={async (listId) => {
 										const snap = await getDoc(doc(db, "sharedLists", listId))
 

@@ -2,6 +2,7 @@ import {
 	arrayUnion,
 	collection,
 	doc,
+	deleteDoc,
 	getDoc,
 	getDocs,
 	limit,
@@ -17,7 +18,7 @@ import {
 } from "firebase/firestore"
 import { db } from "../firebase"
 
-export function listenToItems(type, listId, callback) {
+export function listenToItems(type, listId, callback, onError) {
 	if (!listId) return () => {}
 
 	const path =
@@ -25,13 +26,20 @@ export function listenToItems(type, listId, callback) {
 			? collection(db, "shoppingLists", listId, "items")
 			: collection(db, "sharedLists", listId, "items")
 
-	return onSnapshot(path, (snapshot) => {
-		const items = snapshot.docs.map((doc) => ({
-			id: doc.id,
-			...doc.data(),
-		}))
-		callback(items)
-	})
+	return onSnapshot(
+		path,
+		(snapshot) => {
+			const items = snapshot.docs.map((doc) => ({
+				id: doc.id,
+				...doc.data(),
+			}))
+			callback(items)
+		},
+		(error) => {
+			console.error("listenToItems error:", error)
+			if (onError) onError(error)
+		},
+	)
 }
 
 export async function leaveSharedList(listId, currentUser) {
@@ -209,4 +217,21 @@ export async function dismissNotification(notificationId) {
 	await updateDoc(doc(db, "notifications", notificationId), {
 		read: true,
 	})
+}
+
+export async function deleteSharedList(listId) {
+	const batch = writeBatch(db)
+
+	// Delete all items in the subcollection
+	const itemsSnap = await getDocs(
+		collection(db, "sharedLists", listId, "items"),
+	)
+	itemsSnap.docs.forEach((itemDoc) => {
+		batch.delete(itemDoc.ref)
+	})
+
+	// Delete the parent shared list document
+	batch.delete(doc(db, "sharedLists", listId))
+
+	await batch.commit()
 }

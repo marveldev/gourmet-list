@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import {
 	collection,
 	deleteDoc,
@@ -13,12 +13,19 @@ import { Check, Plus, Trash2 } from "lucide-react"
 import clsx from "clsx"
 import { db } from "../firebase"
 import { useAuth } from "../contexts/AuthContext"
-import { leaveSharedList } from "../services/list.services"
+import { deleteSharedList, leaveSharedList } from "../services/list.services"
 
-export default function SharedList({ showToast, onInvite, onSelectList }) {
+export default function SharedList({
+	showToast,
+	onInvite,
+	onSelectList,
+	onDeleteList,
+}) {
 	const { currentUser } = useAuth()
 	const [sharedLists, setSharedLists] = useState([])
 	const [loading, setLoading] = useState(true)
+	const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+	const itemUnsubscribersRef = useRef(new Map())
 
 	useEffect(() => {
 		if (!currentUser?.uid) {
@@ -27,7 +34,7 @@ export default function SharedList({ showToast, onInvite, onSelectList }) {
 			return
 		}
 
-		const itemUnsubscribers = new Map()
+		const itemUnsubscribers = itemUnsubscribersRef.current
 		let isMounted = true
 
 		const sharedListsQuery = query(
@@ -35,85 +42,115 @@ export default function SharedList({ showToast, onInvite, onSelectList }) {
 			where("members", "array-contains", currentUser.uid),
 		)
 
-		const unsubscribe = onSnapshot(sharedListsQuery, async (snapshot) => {
-			const listDocs = snapshot.docs
-			const nextListIds = new Set(listDocs.map((listDoc) => listDoc.id))
+		const unsubscribe = onSnapshot(
+			sharedListsQuery,
+			async (snapshot) => {
+				const listDocs = snapshot.docs
+				const nextListIds = new Set(listDocs.map((listDoc) => listDoc.id))
 
-			// ✅ CLEAN UP OLD LISTENERS
-			itemUnsubscribers.forEach((unsubscribe, id) => {
-				if (!nextListIds.has(id)) {
-					unsubscribe()
-					itemUnsubscribers.delete(id)
-				}
-			})
+				// ✅ CLEAN UP OLD LISTENERS
+				itemUnsubscribers.forEach((unsub, id) => {
+					if (!nextListIds.has(id)) {
+						unsub()
+						itemUnsubscribers.delete(id)
+					}
+				})
 
-			const nextLists = await Promise.all(
-				listDocs.map(async (listDoc) => {
-					const data = listDoc.data()
-					const memberIds = [...new Set(data.members || [])]
-					const members = await Promise.all(
-						memberIds.map(async (uid) => {
-							if (uid === currentUser.uid) {
+				const nextLists = await Promise.all(
+					listDocs.map(async (listDoc) => {
+						const data = listDoc.data()
+						const memberIds = [...new Set(data.members || [])]
+						const members = await Promise.all(
+							memberIds.map(async (uid) => {
+								if (uid === currentUser.uid) {
+									return {
+										uid,
+										email: currentUser.email?.toLowerCase() || "You",
+									}
+								}
+
+								const userSnapshot = await getDoc(doc(db, "users", uid))
 								return {
 									uid,
-									email: currentUser.email?.toLowerCase() || "You",
+									email: userSnapshot.exists()
+										? userSnapshot.data().email
+										: "Unknown member",
 								}
-							}
-
-							const userSnapshot = await getDoc(doc(db, "users", uid))
-							return {
-								uid,
-								email: userSnapshot.exists()
-									? userSnapshot.data().email
-									: "Unknown member",
-							}
-						}),
-					)
-
-					return {
-						id: listDoc.id,
-						ownerId: data.ownerId,
-						ownerEmail: data.ownerEmail || "Unknown owner",
-						members,
-						items:
-							sharedLists.find((existingList) => existingList.id === listDoc.id)
-								?.items || [],
-					}
-				}),
-			)
-
-			if (!isMounted) return
-
-			setSharedLists(nextLists)
-			setLoading(false)
-
-			listDocs.forEach((listDoc) => {
-				if (itemUnsubscribers.has(listDoc.id)) return
-
-				const stopListeningToItems = onSnapshot(
-					collection(db, "sharedLists", listDoc.id, "items"),
-					(itemsSnapshot) => {
-						const items = itemsSnapshot.docs.map((itemDoc) => ({
-							id: itemDoc.id,
-							...itemDoc.data(),
-						}))
-
-						setSharedLists((prev) =>
-							prev.map((list) =>
-								list.id === listDoc.id ? { ...list, items } : list,
-							),
+							}),
 						)
-					},
+
+						return {
+							id: listDoc.id,
+							ownerId: data.ownerId,
+							ownerEmail: data.ownerEmail || "Unknown owner",
+							members,
+							items:
+								sharedLists.find(
+									(existingList) => existingList.id === listDoc.id,
+								)?.items || [],
+						}
+					}),
 				)
 
-				itemUnsubscribers.set(listDoc.id, stopListeningToItems)
-			})
-		})
+				if (!isMounted) return
+
+				setSharedLists(nextLists)
+				setLoading(false)
+
+				listDocs.forEach((listDoc) => {
+					if (itemUnsubscribers.has(listDoc.id)) return
+
+					if (!listDoc.exists()) return
+
+					const data = listDoc.data()
+
+					if (!data.members?.includes(currentUser.uid)) return
+
+					// 🔥 DEFER listener (avoids race condition)
+					setTimeout(() => {
+						try {
+							const stopListeningToItems = onSnapshot(
+								collection(db, "sharedLists", listDoc.id, "items"),
+								(itemsSnapshot) => {
+									const items = itemsSnapshot.docs.map((itemDoc) => ({
+										id: itemDoc.id,
+										...itemDoc.data(),
+									}))
+
+									setSharedLists((prev) =>
+										prev.map((list) =>
+											list.id === listDoc.id ? { ...list, items } : list,
+										),
+									)
+								},
+								(err) => {
+									if (itemUnsubscribers.has(listDoc.id)) {
+										itemUnsubscribers.get(listDoc.id)()
+										itemUnsubscribers.delete(listDoc.id)
+									}
+								},
+							)
+
+							itemUnsubscribers.set(listDoc.id, stopListeningToItems)
+						} catch (err) {
+							console.error("Listener setup failed:", err)
+						}
+					}, 0)
+				})
+			},
+			(err) => {
+				console.error("Shared lists listener error:", err)
+				if (isMounted) {
+					setSharedLists([])
+					setLoading(false)
+				}
+			},
+		)
 
 		return () => {
 			isMounted = false
 			unsubscribe()
-			itemUnsubscribers.forEach((stopListening) => stopListening())
+			itemUnsubscribersRef.current.forEach((stopListening) => stopListening())
 		}
 	}, [currentUser])
 
@@ -144,6 +181,27 @@ export default function SharedList({ showToast, onInvite, onSelectList }) {
 		} catch (err) {
 			console.error(err)
 			showToast?.("Unable to leave list")
+		}
+	}
+
+	const handleDeleteList = async (e, listId) => {
+		e.stopPropagation()
+		// Unsubscribe from this list's items listener BEFORE deleting
+		const unsubItems = itemUnsubscribersRef.current.get(listId)
+		if (unsubItems) {
+			unsubItems()
+			itemUnsubscribersRef.current.delete(listId)
+		}
+		// Tell parent to reset active state (detaches ShoppingList items listener)
+		onDeleteList?.(listId)
+		try {
+			await deleteSharedList(listId)
+			showToast?.("List deleted")
+		} catch (err) {
+			console.error("Failed to delete list:", err)
+			showToast?.("Unable to delete list")
+		} finally {
+			setConfirmDeleteId(null)
 		}
 	}
 
@@ -237,6 +295,37 @@ export default function SharedList({ showToast, onInvite, onSelectList }) {
 								Leave List
 							</button>
 						)}
+
+						{list.ownerId === currentUser.uid &&
+							(confirmDeleteId === list.id ? (
+								<div className="mt-2 flex items-center gap-3">
+									<span className="text-sm text-gray-600 dark:text-gray-300">
+										Delete this list?
+									</span>
+									<button
+										onClick={(e) => handleDeleteList(e, list.id)}
+										className="text-sm font-medium text-red-500 hover:text-red-600">
+										Yes, delete
+									</button>
+									<button
+										onClick={(e) => {
+											e.stopPropagation()
+											setConfirmDeleteId(null)
+										}}
+										className="text-sm text-gray-500 hover:text-gray-600">
+										Cancel
+									</button>
+								</div>
+							) : (
+								<button
+									onClick={(e) => {
+										e.stopPropagation()
+										setConfirmDeleteId(list.id)
+									}}
+									className="mt-2 text-sm font-medium text-red-500 hover:text-red-600">
+									Delete List
+								</button>
+							))}
 					</div>
 
 					<div className="space-y-2">
