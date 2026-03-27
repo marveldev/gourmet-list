@@ -108,8 +108,8 @@ export default function NotificationBadge({ currentUser, showToast }) {
 		if (notification.type === "listDeleted") {
 			return (
 				<>
-					<span className="font-semibold">{notification.fromEmail}</span> deleted a
-					shared list
+					<span className="font-semibold">{notification.fromEmail}</span>{" "}
+					deleted a shared list
 				</>
 			)
 		}
