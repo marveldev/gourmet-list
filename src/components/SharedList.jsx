@@ -195,7 +195,7 @@ export default function SharedList({
 		// Tell parent to reset active state (detaches ShoppingList items listener)
 		onDeleteList?.(listId)
 		try {
-			await deleteSharedList(listId)
+			await deleteSharedList(listId, currentUser)
 			showToast?.("List deleted")
 		} catch (err) {
 			console.error("Failed to delete list:", err)

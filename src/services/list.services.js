@@ -243,7 +243,21 @@ export async function dismissNotification(notificationId) {
 	})
 }
 
-export async function deleteSharedList(listId) {
+export async function deleteSharedList(listId, currentUser) {
+	const listRef = doc(db, "sharedLists", listId)
+	const listSnapshot = await getDoc(listRef)
+
+	if (!listSnapshot.exists()) {
+		throw new Error("Shared list not found")
+	}
+
+	const list = listSnapshot.data()
+	const ownerId = list.ownerId
+
+	if (!currentUser?.uid || ownerId !== currentUser.uid) {
+		throw new Error("Only the owner can delete this list")
+	}
+
 	const batch = writeBatch(db)
 
 	// Delete all items in the subcollection
@@ -254,8 +268,25 @@ export async function deleteSharedList(listId) {
 		batch.delete(itemDoc.ref)
 	})
 
+	// Notify each member (except owner) that this list was deleted
+	const members = Array.isArray(list.members) ? list.members : []
+	members
+		.filter((memberUid) => memberUid && memberUid !== ownerId)
+		.forEach((memberUid) => {
+			const notificationRef = doc(collection(db, "notifications"))
+			batch.set(notificationRef, {
+				type: "listDeleted",
+				listId,
+				fromUid: currentUser.uid,
+				fromEmail: currentUser.email || list.ownerEmail,
+				toUid: memberUid,
+				createdAt: serverTimestamp(),
+				read: false,
+			})
+		})
+
 	// Delete the parent shared list document
-	batch.delete(doc(db, "sharedLists", listId))
+	batch.delete(listRef)
 
 	await batch.commit()
 }

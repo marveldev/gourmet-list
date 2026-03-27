@@ -90,8 +90,8 @@ export default function NotificationBadge({ currentUser, showToast }) {
 		if (notification.type === "inviteAccepted") {
 			return (
 				<>
-					<span className="font-semibold">{notification.fromEmail}</span> accepted
-					your invite
+					<span className="font-semibold">{notification.fromEmail}</span>{" "}
+					accepted your invite
 				</>
 			)
 		}
@@ -99,7 +99,16 @@ export default function NotificationBadge({ currentUser, showToast }) {
 		if (notification.type === "memberLeft") {
 			return (
 				<>
-					<span className="font-semibold">{notification.fromEmail}</span> left your
+					<span className="font-semibold">{notification.fromEmail}</span> left
+					your shared list
+				</>
+			)
+		}
+
+		if (notification.type === "listDeleted") {
+			return (
+				<>
+					<span className="font-semibold">{notification.fromEmail}</span> deleted a
 					shared list
 				</>
 			)
