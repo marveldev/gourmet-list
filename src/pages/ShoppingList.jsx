@@ -122,6 +122,52 @@ export default function ShoppingListApp() {
 	}, [filter, currentUser?.uid])
 
 	useEffect(() => {
+		if (filter !== "shared") return
+		if (!currentUser?.uid) return
+
+		let isCancelled = false
+
+		const selectDefaultSharedList = async () => {
+			try {
+				const sharedListsQuery = query(
+					collection(db, "sharedLists"),
+					where("members", "array-contains", currentUser.uid),
+				)
+				const snapshot = await getDocs(sharedListsQuery)
+
+				if (isCancelled) return
+
+				if (snapshot.empty) {
+					setActiveListId(null)
+					return
+				}
+
+				const listDocs = snapshot.docs
+				const hasValidActiveList =
+					!!activeListId && listDocs.some((listDoc) => listDoc.id === activeListId)
+
+				if (hasValidActiveList) return
+
+				const ownerList = listDocs.find(
+					(listDoc) => listDoc.data()?.ownerId === currentUser.uid,
+				)
+				const nextActiveListId = ownerList?.id || listDocs[0].id
+
+				setActiveListId(nextActiveListId)
+				setMode("shared")
+			} catch (err) {
+				console.error("Failed to select default shared list:", err)
+			}
+		}
+
+		selectDefaultSharedList()
+
+		return () => {
+			isCancelled = true
+		}
+	}, [filter, currentUser?.uid, activeListId])
+
+	useEffect(() => {
 		if (!currentUser) return
 
 		let unsubscribe = null
@@ -641,6 +687,7 @@ export default function ShoppingListApp() {
 							<div>
 								<SharedList
 									showToast={showToast}
+									selectedListId={activeListId}
 									onInvite={() => setIsShareModalOpen(true)}
 									onDeleteList={() => {
 										setItems([])
