@@ -295,12 +295,6 @@ export default function ShoppingListApp() {
 		return doc(db, "sharedLists", activeListId, "items", id)
 	}
 
-	const exitShared = () => {
-		setMode("private")
-		setActiveListId(null)
-		setFilter("all")
-	}
-
 	// Actions
 	const addItem = async (e) => {
 		e.preventDefault()
@@ -645,15 +639,6 @@ export default function ShoppingListApp() {
 					<div className="flex-grow overflow-y-auto p-6 max-w-3xl mx-auto w-full space-y-2">
 						{filter === "shared" ? (
 							<div>
-								{/* ✅ Show back button ONLY when inside a specific shared list */}
-								{mode === "shared" && activeListId && (
-									<button
-										onClick={exitShared}
-										className="mb-4 text-sm font-medium text-accent-600 hover:underline">
-										← Back to your list
-									</button>
-								)}
-
 								<SharedList
 									showToast={showToast}
 									onInvite={() => setIsShareModalOpen(true)}
