@@ -9,7 +9,7 @@ import {
 	updateDoc,
 	where,
 } from "firebase/firestore"
-import { Check, Plus, Trash2 } from "lucide-react"
+import { Check, MoreHorizontal, Plus, Trash2 } from "lucide-react"
 import clsx from "clsx"
 import { db } from "../firebase"
 import { useAuth } from "../contexts/AuthContext"
@@ -25,6 +25,7 @@ export default function SharedList({
 	const [sharedLists, setSharedLists] = useState([])
 	const [loading, setLoading] = useState(true)
 	const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+	const [actionMenuListId, setActionMenuListId] = useState(null)
 	const itemUnsubscribersRef = useRef(new Map())
 
 	useEffect(() => {
@@ -202,7 +203,44 @@ export default function SharedList({
 			showToast?.("Unable to delete list")
 		} finally {
 			setConfirmDeleteId(null)
+			setActionMenuListId(null)
 		}
+	}
+
+	const getInitials = (value) => {
+		if (!value) return "?"
+
+		const clean = value
+			.replace(/@.*$/, "")
+			.replace(/[^a-zA-Z0-9\s]/g, " ")
+			.trim()
+
+		if (!clean) return "?"
+
+		const parts = clean.split(/\s+/).filter(Boolean)
+		if (parts.length === 1) {
+			return parts[0].slice(0, 2).toUpperCase()
+		}
+
+		return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase()
+	}
+
+	const getMemberLabel = (member) => {
+		if (member.uid === currentUser?.uid) return "You"
+		if (!member.email) return "Member"
+		return member.email.split("@")[0]
+	}
+
+	const getItemCreatorLabel = (item) => {
+		const currentEmail = currentUser?.email?.toLowerCase()
+		const creatorEmail = item.createdByEmail?.toLowerCase()
+
+		if (item.createdBy === currentUser?.uid || creatorEmail === currentEmail) {
+			return "You"
+		}
+
+		if (!item.createdByEmail) return "Someone"
+		return item.createdByEmail.split("@")[0]
 	}
 
 	if (loading) {
@@ -252,83 +290,95 @@ export default function SharedList({
 
 	return (
 		<div className="space-y-6">
-			<div>
-				<h2 className="text-lg font-bold text-gray-900 dark:text-white">
-					Shared with you
-				</h2>
-				<p className="text-sm text-gray-500 dark:text-gray-400">
-					Collaborate on lists in real time.
-				</p>
-			</div>
-
 			{sharedLists.map((list) => (
 				<div
 					key={list.id}
 					onClick={() => onSelectList?.(list.id)}
 					className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
 					<div className="mb-4">
-						<h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
-							Collaborators
-						</h3>
-						<ul className="space-y-1">
-							{list.members.map((member) => (
-								<li
-									key={member.uid}
-									className="text-sm text-gray-700 dark:text-gray-200">
-									{member.email}
-									{member.uid === currentUser.uid &&
-										list.ownerId === currentUser.uid && (
-											<span className="ml-2 text-xs text-accent-600 font-medium">
-												(you · owner)
-											</span>
-										)}
-								</li>
-							))}
-						</ul>
-						{list.ownerId !== currentUser.uid && (
-							<button
-								onClick={(e) => {
-									e.stopPropagation()
-									handleLeaveList(list.id)
-								}}
-								className="mt-2 text-sm text-red-500 hover:text-red-600 font-medium">
-								Leave List
-							</button>
-						)}
-
-						{list.ownerId === currentUser.uid &&
-							(confirmDeleteId === list.id ? (
-								<div className="mt-2 flex items-center gap-3">
-									<span className="text-sm text-gray-600 dark:text-gray-300">
-										Delete this list?
-									</span>
-									<button
-										onClick={(e) => handleDeleteList(e, list.id)}
-										className="text-sm font-medium text-red-500 hover:text-red-600">
-										Yes, delete
-									</button>
-									<button
-										onClick={(e) => {
-											e.stopPropagation()
-											setConfirmDeleteId(null)
-										}}
-										className="text-sm text-gray-500 hover:text-gray-600">
-										Cancel
-									</button>
-								</div>
-							) : (
+						<div className="mb-3 flex items-start justify-end">
+							<div className="relative">
 								<button
 									onClick={(e) => {
 										e.stopPropagation()
-										setConfirmDeleteId(list.id)
+										setConfirmDeleteId(null)
+										setActionMenuListId((current) =>
+											current === list.id ? null : list.id,
+										)
 									}}
-									className="mt-2 text-sm font-medium text-red-500 hover:text-red-600">
-									Delete List
+									className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+									aria-label="Open list actions">
+									<MoreHorizontal className="h-4 w-4" />
 								</button>
+
+								{actionMenuListId === list.id && (
+									<div
+										onClick={(e) => e.stopPropagation()}
+										className="absolute right-0 z-10 mt-1 w-44 rounded-xl border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+										{list.ownerId !== currentUser.uid ? (
+											<button
+												onClick={() => {
+													handleLeaveList(list.id)
+													setActionMenuListId(null)
+												}}
+												className="w-full rounded-lg px-3 py-2 text-left text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+												Leave list
+											</button>
+										) : confirmDeleteId === list.id ? (
+											<div className="space-y-2 px-2 py-2">
+												<p className="text-xs text-gray-500 dark:text-gray-400">
+													Delete this shared list?
+												</p>
+												<div className="flex items-center gap-2">
+													<button
+														onClick={(e) => handleDeleteList(e, list.id)}
+														className="rounded-md px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30">
+														Delete
+													</button>
+													<button
+														onClick={() => setConfirmDeleteId(null)}
+														className="rounded-md px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">
+														Cancel
+													</button>
+												</div>
+											</div>
+										) : (
+											<button
+												onClick={() => setConfirmDeleteId(list.id)}
+												className="w-full rounded-lg px-3 py-2 text-left text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+												Delete list
+											</button>
+										)}
+									</div>
+								)}
+							</div>
+						</div>
+
+						<h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+							Collaborators
+						</h3>
+						<ul className="flex flex-wrap gap-2">
+							{list.members.map((member) => (
+								<li
+									key={member.uid}
+									className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 dark:border-gray-700 dark:bg-gray-900">
+									<span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-accent-100 text-[11px] font-semibold text-accent-700 dark:bg-accent-900/40 dark:text-accent-200">
+										{getInitials(getMemberLabel(member))}
+									</span>
+									<span className="text-xs font-medium text-gray-700 dark:text-gray-200">
+										{getMemberLabel(member)}
+									</span>
+									{member.uid === list.ownerId && (
+										<span className="rounded-full bg-accent-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-700 dark:bg-accent-900/30 dark:text-accent-300">
+											Owner
+										</span>
+									)}
+								</li>
 							))}
+						</ul>
 					</div>
 
-					<div className="space-y-2">
+					<div className="divide-y divide-gray-200 dark:divide-gray-700">
 						{list.items.length === 0 ? (
 							<p className="rounded-xl bg-gray-50 px-4 py-4 text-sm text-gray-500 dark:bg-gray-900 dark:text-gray-400">
 								No items in this shared list yet.
@@ -339,7 +389,7 @@ export default function SharedList({
 									key={item.id}
 									onClick={() => toggleSharedItem(list.id, item)}
 									className={clsx(
-										"flex cursor-pointer items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 transition-all hover:shadow-sm dark:border-gray-700 dark:bg-gray-900",
+										"flex cursor-pointer items-center gap-3 py-2 transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/40",
 										item.completed && "opacity-60",
 									)}>
 									<div
@@ -354,14 +404,14 @@ export default function SharedList({
 									<div className="flex-1">
 										<p
 											className={clsx(
-												"font-medium text-gray-800 dark:text-gray-100",
+												"text-base font-semibold text-gray-900 dark:text-gray-100",
 												item.completed && "line-through text-gray-400",
 											)}>
 											{item.name}
 										</p>
 										{item.createdByEmail && (
-											<p className="text-xs text-gray-500 dark:text-gray-400">
-												Added by {item.createdByEmail}
+											<p className="text-[11px] font-medium text-gray-400 dark:text-gray-500">
+												Added by {getItemCreatorLabel(item)}
 											</p>
 										)}
 									</div>
