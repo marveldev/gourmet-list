@@ -305,23 +305,44 @@ export default function ShoppingListApp() {
 	const addItem = async (e) => {
 		e.preventDefault()
 		if (!inputValue.trim()) return
-		const newItem = {
-			name: inputValue.trim(),
-			completed: false,
-			createdBy: currentUser.uid,
-			createdByEmail: currentUser.email,
+		if (!currentUser?.uid) return
+
+		const value = inputValue.trim()
+		const isSharedContext = filter === "shared" || mode === "shared"
+
+		let targetCollectionRef = null
+
+		if (isSharedContext) {
+			if (!activeListId) {
+				showToast("Select a shared list first")
+				return
+			}
+
+			targetCollectionRef = collection(db, "sharedLists", activeListId, "items")
+		} else if (mode === "private") {
+			targetCollectionRef = collection(
+				db,
+				"shoppingLists",
+				currentUser.uid,
+				"items",
+			)
 		}
 
-		if (!itemsCollectionRef) return
+		if (!targetCollectionRef) return
 
 		try {
-			await addDoc(itemsCollectionRef, {
-				...newItem,
+			await addDoc(targetCollectionRef, {
+				text: value,
+				checked: false,
+				createdBy: currentUser.uid,
+				name: value,
+				completed: false,
+				createdByEmail: currentUser.email,
 				createdAt: serverTimestamp(),
 			})
 
 			setInputValue("")
-			showToast(`Added ${newItem.name}`)
+			showToast(`Added ${value}`)
 		} catch (err) {
 			console.error("Failed to add item:", err)
 			showToast("Unable to add item")
