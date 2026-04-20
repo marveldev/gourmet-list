@@ -9,7 +9,7 @@ import {
 	updateDoc,
 	where,
 } from "firebase/firestore"
-import { Check, MoreHorizontal, Plus, Trash2 } from "lucide-react"
+import { Check, Edit, MoreHorizontal, Plus, Trash2 } from "lucide-react"
 import clsx from "clsx"
 import { db } from "../firebase"
 import { useAuth } from "../contexts/AuthContext"
@@ -26,6 +26,7 @@ export default function SharedList({
 	const [loading, setLoading] = useState(true)
 	const [confirmDeleteId, setConfirmDeleteId] = useState(null)
 	const [actionMenuListId, setActionMenuListId] = useState(null)
+	const [swipedItemKey, setSwipedItemKey] = useState(null)
 	const itemUnsubscribersRef = useRef(new Map())
 
 	useEffect(() => {
@@ -169,9 +170,32 @@ export default function SharedList({
 	const deleteSharedItem = async (listId, itemId) => {
 		try {
 			await deleteDoc(doc(db, "shoppingLists", listId, "items", itemId))
+			setSwipedItemKey(null)
 		} catch (err) {
 			console.error("Failed to delete shared item:", err)
 			showToast?.("Unable to delete shared item")
+		}
+	}
+
+	const editSharedItem = async (listId, item) => {
+		const nextName = window.prompt("Edit item", item.name)
+		if (!nextName) return
+
+		const value = nextName.trim()
+		if (!value || value === item.name) {
+			setSwipedItemKey(null)
+			return
+		}
+
+		try {
+			await updateDoc(doc(db, "sharedLists", listId, "items", item.id), {
+				name: value,
+			})
+			setSwipedItemKey(null)
+			showToast?.("Item updated")
+		} catch (err) {
+			console.error("Failed to edit shared item:", err)
+			showToast?.("Unable to update shared item")
 		}
 	}
 
@@ -378,53 +402,149 @@ export default function SharedList({
 						</ul>
 					</div>
 
-					<div className="divide-y divide-gray-200 dark:divide-gray-700">
+					<div className="space-y-2">
 						{list.items.length === 0 ? (
 							<p className="rounded-xl bg-gray-50 px-4 py-4 text-sm text-gray-500 dark:bg-gray-900 dark:text-gray-400">
 								No items in this shared list yet.
 							</p>
 						) : (
-							list.items.map((item) => (
-								<div
-									key={item.id}
-									onClick={() => toggleSharedItem(list.id, item)}
-									className={clsx(
-										"flex cursor-pointer items-center gap-3 py-2 transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/40",
-										item.completed && "opacity-60",
-									)}>
-									<div
-										className={clsx(
-											"flex h-5 w-5 items-center justify-center rounded border-2",
-											item.completed
-												? "border-accent-600 bg-accent-600"
-												: "border-gray-300",
-										)}>
-										{item.completed && <Check className="h-4 w-4 text-white" />}
-									</div>
-									<div className="flex-1">
-										<p
+							list.items.map((item) => {
+								const itemKey = `${list.id}:${item.id}`
+								const isSwiped = swipedItemKey === itemKey
+
+								return (
+									<div key={item.id} className="relative overflow-hidden">
+										<div
 											className={clsx(
-												"text-base font-semibold text-gray-900 dark:text-gray-100",
-												item.completed && "line-through text-gray-400",
+												"absolute right-0 top-0 bottom-0 flex items-center bg-accent-500 rounded-tr-lg rounded-br-lg border border-gray-100 dark:border-gray-700 shadow-sm transition-transform duration-300 ease-out z-10",
+												isSwiped ? "translate-x-0" : "translate-x-full",
 											)}>
-											{item.name}
-										</p>
-										{item.createdByEmail && (
-											<p className="text-[11px] font-medium text-gray-400 dark:text-gray-500">
-												Added by {getItemCreatorLabel(item)}
-											</p>
-										)}
+											<button
+												onClick={(e) => {
+													e.stopPropagation()
+													editSharedItem(list.id, item)
+												}}
+												className="p-3 text-white hover:bg-red-600 transition-colors">
+												<Edit className="w-5 h-5" />
+											</button>
+											<button
+												onClick={(e) => {
+													e.stopPropagation()
+													deleteSharedItem(list.id, item.id)
+												}}
+												className="p-3 text-white hover:bg-red-600 transition-colors">
+												<Trash2 className="w-5 h-5" />
+											</button>
+										</div>
+
+										<div
+											onClick={(e) => {
+												if (!e.currentTarget.wasDragged) {
+													toggleSharedItem(list.id, item)
+												}
+											}}
+											onMouseDown={(e) => {
+												e.currentTarget.mouseStartX = e.clientX
+												e.currentTarget.isMouseDown = true
+												e.currentTarget.wasDragged = false
+											}}
+											onMouseMove={(e) => {
+												if (
+													!e.currentTarget.isMouseDown ||
+													!e.currentTarget.mouseStartX
+												)
+													return
+
+												const deltaX = e.currentTarget.mouseStartX - e.clientX
+
+												if (Math.abs(deltaX) > 20) {
+													e.currentTarget.wasDragged = true
+												}
+
+												if (deltaX > 20) {
+													e.currentTarget.style.transform = `translateX(-${Math.min(deltaX, 120)}px)`
+												}
+											}}
+											onMouseUp={(e) => {
+												if (!e.currentTarget.isMouseDown) return
+												const deltaX = e.currentTarget.mouseStartX - e.clientX
+
+												if (deltaX > 80) {
+													setSwipedItemKey(itemKey)
+												} else {
+													setSwipedItemKey(null)
+												}
+
+												e.currentTarget.style.transform = ""
+												e.currentTarget.isMouseDown = false
+											}}
+											onMouseLeave={(e) => {
+												if (e.currentTarget.isMouseDown) {
+													e.currentTarget.style.transform = ""
+													e.currentTarget.isMouseDown = false
+													e.currentTarget.wasDragged = false
+												}
+											}}
+											onTouchStart={(e) => {
+												e.currentTarget.touchStartX = e.touches[0].clientX
+												e.currentTarget.wasDragged = false
+											}}
+											onTouchMove={(e) => {
+												if (!e.currentTarget.touchStartX) return
+
+												const deltaX =
+													e.currentTarget.touchStartX - e.touches[0].clientX
+
+												if (Math.abs(deltaX) > 20) {
+													e.currentTarget.wasDragged = true
+												}
+
+												if (deltaX > 20) {
+													e.currentTarget.style.transform = `translateX(-${Math.min(deltaX, 120)}px)`
+												}
+											}}
+											onTouchEnd={(e) => {
+												const deltaX =
+													e.currentTarget.touchStartX -
+													e.changedTouches[0].clientX
+
+												if (deltaX > 80) {
+													setSwipedItemKey(itemKey)
+												} else {
+													setSwipedItemKey(null)
+												}
+
+												e.currentTarget.style.transform = ""
+											}}
+											className={clsx(
+												"group flex items-center gap-3 p-3 py-4 bg-[#fff] dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all cursor-pointer",
+												item.completed &&
+													"opacity-60 bg-[#F9FAFB] dark:bg-gray-800/50",
+											)}>
+											<div
+												className={clsx(
+													"w-5 h-5 border-2 rounded flex items-center justify-center transition-all",
+													item.completed
+														? "border-accent-600 bg-accent-600"
+														: "border-gray-300",
+												)}>
+												{item.completed && (
+													<Check className="h-4 w-4 text-white" />
+												)}
+											</div>
+											<div className="flex-1">
+												<p
+													className={clsx(
+														"flex-grow font-medium transition-all text-gray-700 dark:text-gray-200",
+														item.completed && "line-through text-gray-400",
+													)}>
+													{item.name}
+												</p>
+											</div>
+										</div>
 									</div>
-									<button
-										onClick={(e) => {
-											e.stopPropagation()
-											deleteSharedItem(list.id, item.id)
-										}}
-										className="p-2 text-red-500 hover:text-red-600">
-										<Trash2 className="h-4 w-4" />
-									</button>
-								</div>
-							))
+								)
+							})
 						)}
 					</div>
 				</div>
