@@ -144,7 +144,8 @@ export default function ShoppingListApp() {
 
 				const listDocs = snapshot.docs
 				const hasValidActiveList =
-					!!activeListId && listDocs.some((listDoc) => listDoc.id === activeListId)
+					!!activeListId &&
+					listDocs.some((listDoc) => listDoc.id === activeListId)
 
 				if (hasValidActiveList) return
 
