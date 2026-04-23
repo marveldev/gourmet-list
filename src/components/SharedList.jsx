@@ -9,7 +9,7 @@ import {
 	updateDoc,
 	where,
 } from "firebase/firestore"
-import { Check, Edit, MoreHorizontal, Plus, Trash2 } from "lucide-react"
+import { Check, Edit, MoreHorizontal, Plus, Trash2, X } from "lucide-react"
 import clsx from "clsx"
 import { db } from "../firebase"
 import { useAuth } from "../contexts/AuthContext"
@@ -28,6 +28,10 @@ export default function SharedList({
 	const [confirmDeleteId, setConfirmDeleteId] = useState(null)
 	const [actionMenuListId, setActionMenuListId] = useState(null)
 	const [swipedItemKey, setSwipedItemKey] = useState(null)
+	const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+	const [editingItem, setEditingItem] = useState(null)
+	const [editingListId, setEditingListId] = useState(null)
+	const [editValue, setEditValue] = useState("")
 	const itemUnsubscribersRef = useRef(new Map())
 
 	useEffect(() => {
@@ -178,22 +182,39 @@ export default function SharedList({
 		}
 	}
 
-	const editSharedItem = async (listId, item) => {
-		const nextName = window.prompt("Edit item", item.name)
-		if (!nextName) return
+	const openEditModal = (listId, item) => {
+		setEditingListId(listId)
+		setEditingItem(item)
+		setEditValue(item.name || "")
+		setSwipedItemKey(null)
+		setIsEditModalOpen(true)
+	}
 
-		const value = nextName.trim()
-		if (!value || value === item.name) {
-			setSwipedItemKey(null)
+	const closeEditModal = () => {
+		setIsEditModalOpen(false)
+		setEditingItem(null)
+		setEditingListId(null)
+		setEditValue("")
+	}
+
+	const saveEdit = async () => {
+		if (!editingListId || !editingItem) return
+
+		const value = editValue.trim()
+		if (!value || value === editingItem.name) {
+			closeEditModal()
 			return
 		}
 
 		try {
-			await updateDoc(doc(db, "sharedLists", listId, "items", item.id), {
-				name: value,
-			})
-			setSwipedItemKey(null)
+			await updateDoc(
+				doc(db, "sharedLists", editingListId, "items", editingItem.id),
+				{
+					name: value,
+				},
+			)
 			showToast?.("Item updated")
+			closeEditModal()
 		} catch (err) {
 			console.error("Failed to edit shared item:", err)
 			showToast?.("Unable to update shared item")
@@ -254,18 +275,6 @@ export default function SharedList({
 		if (member.uid === currentUser?.uid) return "You"
 		if (!member.email) return "Member"
 		return member.email.split("@")[0]
-	}
-
-	const getItemCreatorLabel = (item) => {
-		const currentEmail = currentUser?.email?.toLowerCase()
-		const creatorEmail = item.createdByEmail?.toLowerCase()
-
-		if (item.createdBy === currentUser?.uid || creatorEmail === currentEmail) {
-			return "You"
-		}
-
-		if (!item.createdByEmail) return "Someone"
-		return item.createdByEmail.split("@")[0]
 	}
 
 	if (loading) {
@@ -438,7 +447,7 @@ export default function SharedList({
 												<button
 													onClick={(e) => {
 														e.stopPropagation()
-														editSharedItem(list.id, item)
+														openEditModal(list.id, item)
 													}}
 													className="p-3 text-white hover:bg-red-600 transition-colors">
 													<Edit className="w-5 h-5" />
@@ -566,6 +575,66 @@ export default function SharedList({
 					</div>
 				)
 			})}
+
+			{isEditModalOpen && editingItem && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+					<div
+						className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+						onClick={closeEditModal}></div>
+					<div className="relative bg-[#fff] dark:bg-gray-800 border border-[#e5e7eb] dark:border-gray-600 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-fade-in-up">
+						<div className="flex items-center justify-between mb-6">
+							<div>
+								<h2 className="text-lg font-bold text-gray-900 dark:text-white">
+									Edit Item
+								</h2>
+								<p className="text-sm text-gray-500 dark:text-gray-400">
+									Update the item name.
+								</p>
+							</div>
+							<button
+								onClick={closeEditModal}
+								className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+								<X className="w-5 h-5 dark:text-white" />
+							</button>
+						</div>
+
+						<form
+							onSubmit={(e) => {
+								e.preventDefault()
+								saveEdit()
+							}}
+							className="space-y-4">
+							<div>
+								<label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+									Item name
+								</label>
+								<input
+									type="text"
+									required
+									value={editValue}
+									onChange={(e) => setEditValue(e.target.value)}
+									className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-accent-500 outline-none dark:bg-gray-700 dark:text-white"
+									placeholder="Enter item name"
+									autoFocus
+								/>
+							</div>
+							<div className="flex justify-end gap-2">
+								<button
+									type="button"
+									onClick={closeEditModal}
+									className="px-3 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900">
+									Cancel
+								</button>
+								<button
+									type="submit"
+									className="px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold rounded-lg transition-colors">
+									Save
+								</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			)}
 
 			<div className="flex justify-center">
 				<button
