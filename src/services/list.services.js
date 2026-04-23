@@ -133,11 +133,12 @@ export async function acceptInvite(inviteId, currentUser) {
 
 	const invite = inviteSnapshot.data()
 
+	if (!invite.listId) throw new Error("Invite is missing a list reference")
+
+	const listRef = doc(db, "sharedLists", invite.listId)
+
 	const batch = writeBatch(db)
 	const notificationRef = doc(collection(db, "notifications"))
-
-	// Add user to shared list members
-	const listRef = doc(db, "sharedLists", invite.listId)
 
 	batch.update(listRef, {
 		members: arrayUnion(currentUser.uid),
