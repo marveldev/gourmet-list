@@ -8,7 +8,7 @@ import {
 	dismissNotification,
 } from "../services/list.services"
 
-export default function NotificationBadge({ currentUser, showToast }) {
+export default function NotificationBadge({ currentUser, showToast, onInviteAccepted }) {
 	const [invites, setInvites] = useState([])
 	const [notifications, setNotifications] = useState([])
 	const [isOpen, setIsOpen] = useState(false)
@@ -61,6 +61,10 @@ export default function NotificationBadge({ currentUser, showToast }) {
 					? `Joined ${invite.fromEmail}'s shared list`
 					: "Invite declined",
 			)
+
+			if (action === "accept" && invite.listId) {
+				onInviteAccepted?.(invite.listId)
+			}
 		} catch (err) {
 			console.error("Failed to respond to invite:", err)
 			showToast?.(err.message || "Unable to update invite")

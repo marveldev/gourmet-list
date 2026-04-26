@@ -580,6 +580,11 @@ export default function ShoppingListApp() {
 				openChefBot={() => setIsChatOpen(true)}
 				openShare={() => setIsShareModalOpen(true)}
 				showToast={showToast}
+				onInviteAccepted={(listId) => {
+					setActiveListId(listId)
+					setMode("shared")
+					setFilter("shared")
+				}}
 			/>
 
 			<main className="flex-grow flex overflow-hidden relative">

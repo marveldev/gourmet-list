@@ -693,7 +693,9 @@ export default function SharedList({
 							</button>
 							<button
 								type="button"
-								onClick={() => deleteSharedItem(deletingListId, deletingItem.id)}
+								onClick={() =>
+									deleteSharedItem(deletingListId, deletingItem.id)
+								}
 								className="px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold rounded-lg transition-colors">
 								Confirm Delete
 							</button>

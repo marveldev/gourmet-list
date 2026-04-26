@@ -9,6 +9,7 @@ export default function Header({
 	isDark,
 	openShare,
 	showToast,
+	onInviteAccepted,
 }) {
 	const { currentUser } = useAuth()
 	return (
@@ -49,7 +50,7 @@ export default function Header({
 						<Share2 className="w-6 h-6" />
 					</button>
 
-					<NotificationBadge currentUser={currentUser} showToast={showToast} />
+					<NotificationBadge currentUser={currentUser} showToast={showToast} onInviteAccepted={onInviteAccepted} />
 				</div>
 			</div>
 		</header>
