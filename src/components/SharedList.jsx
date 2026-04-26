@@ -32,6 +32,9 @@ export default function SharedList({
 	const [editingItem, setEditingItem] = useState(null)
 	const [editingListId, setEditingListId] = useState(null)
 	const [editValue, setEditValue] = useState("")
+	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+	const [deletingItem, setDeletingItem] = useState(null)
+	const [deletingListId, setDeletingListId] = useState(null)
 	const itemUnsubscribersRef = useRef(new Map())
 
 	useEffect(() => {
@@ -174,12 +177,29 @@ export default function SharedList({
 
 	const deleteSharedItem = async (listId, itemId) => {
 		try {
-			await deleteDoc(doc(db, "shoppingLists", listId, "items", itemId))
+			await deleteDoc(doc(db, "sharedLists", listId, "items", itemId))
 			setSwipedItemKey(null)
+			setIsDeleteModalOpen(false)
+			setDeletingItem(null)
+			setDeletingListId(null)
+			showToast?.("Item deleted")
 		} catch (err) {
 			console.error("Failed to delete shared item:", err)
 			showToast?.("Unable to delete shared item")
 		}
+	}
+
+	const openDeleteModal = (listId, item) => {
+		setDeletingListId(listId)
+		setDeletingItem(item)
+		setSwipedItemKey(null)
+		setIsDeleteModalOpen(true)
+	}
+
+	const closeDeleteModal = () => {
+		setIsDeleteModalOpen(false)
+		setDeletingItem(null)
+		setDeletingListId(null)
 	}
 
 	const openEditModal = (listId, item) => {
@@ -455,7 +475,7 @@ export default function SharedList({
 												<button
 													onClick={(e) => {
 														e.stopPropagation()
-														deleteSharedItem(list.id, item.id)
+														openDeleteModal(list.id, item)
 													}}
 													className="p-3 text-white hover:bg-red-600 transition-colors">
 													<Trash2 className="w-5 h-5" />
@@ -632,6 +652,52 @@ export default function SharedList({
 								</button>
 							</div>
 						</form>
+					</div>
+				</div>
+			)}
+
+			{isDeleteModalOpen && deletingItem && deletingListId && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+					<div
+						className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+						onClick={closeDeleteModal}></div>
+					<div className="relative bg-[#fff] dark:bg-gray-800 border border-[#e5e7eb] dark:border-gray-600 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-fade-in-up">
+						<div className="flex items-center justify-between mb-6">
+							<div>
+								<h2 className="text-lg font-bold text-gray-900 dark:text-white">
+									Delete Item
+								</h2>
+								<p className="text-sm text-gray-500 dark:text-gray-400">
+									Are you sure you want to delete this item?
+								</p>
+							</div>
+							<button
+								onClick={closeDeleteModal}
+								className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+								<X className="w-5 h-5 dark:text-white" />
+							</button>
+						</div>
+
+						<div className="mb-6 p-3 bg-[#f9fafb] dark:bg-gray-700 rounded-lg">
+							<p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+								"{deletingItem.name}"
+							</p>
+						</div>
+
+						<div className="flex justify-end gap-2">
+							<button
+								type="button"
+								onClick={closeDeleteModal}
+								className="px-3 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900">
+								Cancel
+							</button>
+							<button
+								type="button"
+								onClick={() => deleteSharedItem(deletingListId, deletingItem.id)}
+								className="px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold rounded-lg transition-colors">
+								Confirm Delete
+							</button>
+						</div>
 					</div>
 				</div>
 			)}
