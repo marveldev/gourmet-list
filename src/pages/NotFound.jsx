@@ -17,9 +17,26 @@ export default function NotFound() {
 						fill="none"
 						xmlns="http://www.w3.org/2000/svg"
 						aria-hidden="true">
-						<circle cx="60" cy="60" r="46" stroke="currentColor" strokeWidth="8" opacity="0.2" />
-						<path d="M43 52C43 42.6112 50.6112 35 60 35V35C69.3888 35 77 42.6112 77 52V52" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
-						<path d="M52 70L68 54" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
+						<circle
+							cx="60"
+							cy="60"
+							r="46"
+							stroke="currentColor"
+							strokeWidth="8"
+							opacity="0.2"
+						/>
+						<path
+							d="M43 52C43 42.6112 50.6112 35 60 35V35C69.3888 35 77 42.6112 77 52V52"
+							stroke="currentColor"
+							strokeWidth="8"
+							strokeLinecap="round"
+						/>
+						<path
+							d="M52 70L68 54"
+							stroke="currentColor"
+							strokeWidth="8"
+							strokeLinecap="round"
+						/>
 						<circle cx="49" cy="75" r="5" fill="currentColor" />
 						<circle cx="72" cy="75" r="5" fill="currentColor" />
 					</svg>
@@ -32,8 +49,8 @@ export default function NotFound() {
 					Page not found
 				</h1>
 				<p className="mx-auto mb-8 max-w-md text-sm text-gray-600 dark:text-gray-300 md:text-base">
-					This page doesn’t exist anymore or the link is incorrect. Let’s get you
-					back to something useful.
+					This page doesn’t exist anymore or the link is incorrect. Let’s get
+					you back to something useful.
 				</p>
 
 				<div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
