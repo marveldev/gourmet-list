@@ -767,12 +767,12 @@ export default function ShoppingListApp() {
 											)}>
 											<button
 												onClick={() => openEditModal(item.id)}
-												className="p-3 text-white hover:bg-red-600 transition-colors">
+												className="p-3 text-white hover:bg-accent-700 transition-colors">
 												<Edit className="w-5 h-5" />
 											</button>
 											<button
 												onClick={() => openDeleteModal(item.id)}
-												className="p-3 text-white hover:bg-red-600 transition-colors">
+												className="p-3 text-white hover:bg-accent-700 transition-colors">
 												<Trash2 className="w-5 h-5" />
 											</button>
 										</div>

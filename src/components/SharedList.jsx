@@ -469,7 +469,7 @@ export default function SharedList({
 														e.stopPropagation()
 														openEditModal(list.id, item)
 													}}
-													className="p-3 text-white hover:bg-red-600 transition-colors">
+													className="p-3 text-white hover:bg-accent-700 transition-colors">
 													<Edit className="w-5 h-5" />
 												</button>
 												<button
@@ -477,7 +477,7 @@ export default function SharedList({
 														e.stopPropagation()
 														openDeleteModal(list.id, item)
 													}}
-													className="p-3 text-white hover:bg-red-600 transition-colors">
+													className="p-3 text-white hover:bg-accent-700 transition-colors">
 													<Trash2 className="w-5 h-5" />
 												</button>
 											</div>
