@@ -15,6 +15,43 @@ import { db } from "../firebase"
 import { useAuth } from "../contexts/AuthContext"
 import { deleteSharedList, leaveSharedList } from "../services/list.services"
 
+const SHARED_LISTS_CACHE_KEY_PREFIX = "gourmet.sharedLists"
+
+const getSharedListsCacheKey = (uid) =>
+	uid ? `${SHARED_LISTS_CACHE_KEY_PREFIX}.${uid}` : null
+
+const readSharedListsCache = (uid) => {
+	const cacheKey = getSharedListsCacheKey(uid)
+	if (!cacheKey) {
+		return { data: [], hasCache: false }
+	}
+
+	try {
+		const raw = localStorage.getItem(cacheKey)
+		if (raw === null) {
+			return { data: [], hasCache: false }
+		}
+
+		const parsed = JSON.parse(raw)
+		return {
+			data: Array.isArray(parsed) ? parsed : [],
+			hasCache: true,
+		}
+	} catch {
+		return { data: [], hasCache: false }
+	}
+}
+
+const writeSharedListsCache = (uid, lists) => {
+	const cacheKey = getSharedListsCacheKey(uid)
+	if (!cacheKey) return
+
+	try {
+		localStorage.setItem(cacheKey, JSON.stringify(lists))
+	} catch {
+	}
+}
+
 export default function SharedList({
 	showToast,
 	onInvite,
@@ -23,8 +60,12 @@ export default function SharedList({
 	selectedListId,
 }) {
 	const { currentUser } = useAuth()
-	const [sharedLists, setSharedLists] = useState([])
-	const [loading, setLoading] = useState(true)
+	const [sharedLists, setSharedLists] = useState(
+		() => readSharedListsCache(currentUser?.uid).data,
+	)
+	const [loading, setLoading] = useState(
+		() => !readSharedListsCache(currentUser?.uid).hasCache,
+	)
 	const [confirmDeleteId, setConfirmDeleteId] = useState(null)
 	const [actionMenuListId, setActionMenuListId] = useState(null)
 	const [swipedItemKey, setSwipedItemKey] = useState(null)
@@ -36,20 +77,31 @@ export default function SharedList({
 	const [deletingItem, setDeletingItem] = useState(null)
 	const [deletingListId, setDeletingListId] = useState(null)
 	const itemUnsubscribersRef = useRef(new Map())
+	const sharedListsRef = useRef(sharedLists)
 
 	useEffect(() => {
-		if (!currentUser?.uid) {
+		sharedListsRef.current = sharedLists
+	}, [sharedLists])
+
+	useEffect(() => {
+		const userId = currentUser?.uid
+
+		if (!userId) {
 			setSharedLists([])
 			setLoading(false)
 			return
 		}
+
+		const { data: cachedLists, hasCache } = readSharedListsCache(userId)
+		setSharedLists(cachedLists)
+		setLoading(!hasCache)
 
 		const itemUnsubscribers = itemUnsubscribersRef.current
 		let isMounted = true
 
 		const sharedListsQuery = query(
 			collection(db, "sharedLists"),
-			where("members", "array-contains", currentUser.uid),
+			where("members", "array-contains", userId),
 		)
 
 		const unsubscribe = onSnapshot(
@@ -72,7 +124,7 @@ export default function SharedList({
 						const memberIds = [...new Set(data.members || [])]
 						const members = await Promise.all(
 							memberIds.map(async (uid) => {
-								if (uid === currentUser.uid) {
+								if (uid === userId) {
 									return {
 										uid,
 										email: currentUser.email?.toLowerCase() || "You",
@@ -95,7 +147,7 @@ export default function SharedList({
 							ownerEmail: data.ownerEmail || "Unknown owner",
 							members,
 							items:
-								sharedLists.find(
+								sharedListsRef.current.find(
 									(existingList) => existingList.id === listDoc.id,
 								)?.items || [],
 						}
@@ -105,6 +157,7 @@ export default function SharedList({
 				if (!isMounted) return
 
 				setSharedLists(nextLists)
+				writeSharedListsCache(userId, nextLists)
 				setLoading(false)
 
 				listDocs.forEach((listDoc) => {
@@ -114,7 +167,7 @@ export default function SharedList({
 
 					const data = listDoc.data()
 
-					if (!data.members?.includes(currentUser.uid)) return
+					if (!data.members?.includes(userId)) return
 
 					// 🔥 DEFER listener (avoids race condition)
 					setTimeout(() => {
@@ -127,11 +180,13 @@ export default function SharedList({
 										...itemDoc.data(),
 									}))
 
-									setSharedLists((prev) =>
-										prev.map((list) =>
+									setSharedLists((prev) => {
+										const next = prev.map((list) =>
 											list.id === listDoc.id ? { ...list, items } : list,
-										),
-									)
+										)
+										writeSharedListsCache(userId, next)
+										return next
+									})
 								},
 								(err) => {
 									if (itemUnsubscribers.has(listDoc.id)) {
@@ -151,7 +206,6 @@ export default function SharedList({
 			(err) => {
 				console.error("Shared lists listener error:", err)
 				if (isMounted) {
-					setSharedLists([])
 					setLoading(false)
 				}
 			},
