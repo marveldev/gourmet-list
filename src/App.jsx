@@ -2,7 +2,6 @@ import {
 	BrowserRouter as Router,
 	Routes,
 	Route,
-	Navigate,
 } from "react-router-dom"
 import { AuthProvider } from "./contexts/AuthContext"
 import { ThemeProvider } from "./contexts/ThemeContext"
@@ -10,6 +9,8 @@ import Landing from "./pages/Landing"
 import SignIn from "./pages/SignIn"
 import SignUp from "./pages/SignUp"
 import ShoppingList from "./pages/ShoppingList"
+import NotFound from "./pages/NotFound"
+import ProtectedRoute from "./components/ProtectedRoute"
 
 function App() {
 	return (
@@ -18,10 +19,13 @@ function App() {
 				<AuthProvider>
 					<Routes>
 						<Route path="/" element={<Landing />} />
-						<Route path="/shopping-list" element={<ShoppingList />} />
 						<Route path="/signin" element={<SignIn />} />
+						<Route path="/login" element={<SignIn />} />
 						<Route path="/signup" element={<SignUp />} />
-						<Route path="*" element={<Navigate to="/" replace />} />
+						<Route element={<ProtectedRoute />}>
+							<Route path="/shopping-list" element={<ShoppingList />} />
+						</Route>
+						<Route path="*" element={<NotFound />} />
 					</Routes>
 				</AuthProvider>
 			</ThemeProvider>

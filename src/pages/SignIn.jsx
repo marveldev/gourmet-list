@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useLocation, useNavigate } from "react-router-dom"
 import { useAuth } from "../contexts/AuthContext"
 import { Lock, Mail, AlertCircle } from "lucide-react"
 
@@ -10,6 +10,8 @@ export default function SignIn() {
 	const [loading, setLoading] = useState(false)
 	const { login, googleSignIn } = useAuth()
 	const navigate = useNavigate()
+	const location = useLocation()
+	const from = location.state?.from?.pathname || "/shopping-list"
 
 	async function handleSubmit(e) {
 		e.preventDefault()
@@ -17,7 +19,7 @@ export default function SignIn() {
 			setError("")
 			setLoading(true)
 			await login(email, password)
-			navigate("/shopping-list")
+			navigate(from, { replace: true })
 		} catch (err) {
 			setError("Failed to sign in. Check your credentials.")
 			console.error(err)
@@ -30,7 +32,7 @@ export default function SignIn() {
 			setError("")
 			setLoading(true)
 			await googleSignIn()
-			navigate("/shopping-list")
+			navigate(from, { replace: true })
 		} catch (err) {
 			setError("Failed to sign in with Google.")
 			console.error(err)
