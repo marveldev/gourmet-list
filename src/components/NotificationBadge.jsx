@@ -8,7 +8,11 @@ import {
 	dismissNotification,
 } from "../services/list.services"
 
-export default function NotificationBadge({ currentUser, showToast, onInviteAccepted }) {
+export default function NotificationBadge({
+	currentUser,
+	showToast,
+	onInviteAccepted,
+}) {
 	const [invites, setInvites] = useState([])
 	const [notifications, setNotifications] = useState([])
 	const [isOpen, setIsOpen] = useState(false)

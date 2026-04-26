@@ -44,6 +44,30 @@ const ALLOWED_FILTERS = ["all", "active", "completed", "shared"]
 const getValidFilter = (value) =>
 	ALLOWED_FILTERS.includes(value) ? value : "all"
 
+const getInitials = (value) => {
+	if (!value) return "?"
+
+	const clean = value
+		.replace(/@.*$/, "")
+		.replace(/[^a-zA-Z0-9\s]/g, " ")
+		.trim()
+
+	if (!clean) return "?"
+
+	const parts = clean.split(/\s+/).filter(Boolean)
+	if (parts.length === 1) {
+		return parts[0].slice(0, 2).toUpperCase()
+	}
+
+	return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase()
+}
+
+const getMemberLabel = (member, currentUser) => {
+	if (member.uid === currentUser?.uid) return "You"
+	if (!member.email) return "Member"
+	return member.email.split("@")[0]
+}
+
 export default function ShoppingListApp() {
 	// State
 	const { currentUser } = useAuth()
@@ -1091,18 +1115,23 @@ export default function ShoppingListApp() {
 						</form>
 
 						<div className="mt-6">
-							<h3 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+							<h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
 								Current members
 							</h3>
-							<div className="flex flex-wrap gap-2">
+							<ul className="flex flex-wrap gap-2">
 								{listMembers.map((member) => (
-									<span
+									<li
 										key={member.uid}
-										className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700 dark:bg-gray-700 dark:text-gray-200">
-										{member.email}
-									</span>
+										className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 dark:border-gray-700 dark:bg-gray-900">
+										<span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-accent-100 text-[11px] font-semibold text-accent-700 dark:bg-accent-900/40 dark:text-accent-200">
+											{getInitials(getMemberLabel(member, currentUser))}
+										</span>
+										<span className="text-xs font-medium text-gray-700 dark:text-gray-200">
+											{getMemberLabel(member, currentUser)}
+										</span>
+									</li>
 								))}
-							</div>
+							</ul>
 						</div>
 					</div>
 				</div>

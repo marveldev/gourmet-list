@@ -50,7 +50,11 @@ export default function Header({
 						<Share2 className="w-6 h-6" />
 					</button>
 
-					<NotificationBadge currentUser={currentUser} showToast={showToast} onInviteAccepted={onInviteAccepted} />
+					<NotificationBadge
+						currentUser={currentUser}
+						showToast={showToast}
+						onInviteAccepted={onInviteAccepted}
+					/>
 				</div>
 			</div>
 		</header>
