@@ -48,8 +48,7 @@ const writeSharedListsCache = (uid, lists) => {
 
 	try {
 		localStorage.setItem(cacheKey, JSON.stringify(lists))
-	} catch {
-	}
+	} catch {}
 }
 
 export default function SharedList({
