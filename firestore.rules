@@ -9,6 +9,10 @@ service cloud.firestore {
       return signedIn() && resource.data.ownerId == request.auth.uid;
     }
 
+    function isOwnPrivateList(listId) {
+      return signedIn() && listId == request.auth.uid;
+    }
+
     function isListMember(listId) {
       return signedIn()
         && request.auth.uid in get(/databases/$(database)/documents/shoppingLists/$(listId)).data.members;
@@ -22,12 +26,15 @@ service cloud.firestore {
 
     match /shoppingLists/{listId} {
       allow create: if signedIn()
+        && listId == request.auth.uid
         && request.resource.data.ownerId == request.auth.uid
         && request.auth.uid in request.resource.data.members;
 
-      allow read: if signedIn() && request.auth.uid in resource.data.members;
+      allow read: if isOwnPrivateList(listId)
+        || (signedIn() && request.auth.uid in resource.data.members);
 
-      allow update, delete: if isListOwner()
+      allow update, delete: if isOwnPrivateList(listId)
+        || isListOwner()
         || (
           signedIn()
           && hasPendingInvite(listId)
@@ -37,7 +44,7 @@ service cloud.firestore {
     }
 
     match /shoppingLists/{listId}/items/{itemId} {
-      allow read, write: if isListMember(listId);
+      allow read, write: if isOwnPrivateList(listId) || isListMember(listId);
     }
 
     function isSharedListMember(listId) {

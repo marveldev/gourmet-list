@@ -200,7 +200,20 @@ export default function ShoppingListApp() {
 		const setup = async () => {
 			// ✅ PRIVATE MODE
 			if (mode === "private") {
-				unsubscribe = listenToItems("private", currentUser.uid, setItems)
+				try {
+					await ensurePrivateListReady()
+					unsubscribe = listenToItems(
+						"private",
+						currentUser.uid,
+						setItems,
+						(err) => {
+							console.error("Private items listener error:", err)
+						},
+					)
+				} catch (err) {
+					console.error("Failed to initialize private list listener:", err)
+					setItems([])
+				}
 				return
 			}
 
@@ -366,6 +379,45 @@ export default function ShoppingListApp() {
 		return doc(db, "sharedLists", activeListId, "items", id)
 	}
 
+	const ensurePrivateListReady = async () => {
+		if (!currentUser?.uid) return false
+
+		const listRef = doc(db, "shoppingLists", currentUser.uid)
+		const listSnap = await getDoc(listRef)
+
+		if (!listSnap.exists()) {
+			await setDoc(listRef, {
+				ownerId: currentUser.uid,
+				ownerEmail: currentUser.email,
+				members: [currentUser.uid],
+				createdAt: serverTimestamp(),
+				updatedAt: serverTimestamp(),
+			})
+			return true
+		}
+
+		const data = listSnap.data() || {}
+		const existingMembers = Array.isArray(data.members) ? data.members : []
+		const members = existingMembers.includes(currentUser.uid)
+			? existingMembers
+			: [...existingMembers, currentUser.uid]
+
+		if (data.ownerId !== currentUser.uid || !existingMembers.includes(currentUser.uid)) {
+			await setDoc(
+				listRef,
+				{
+					ownerId: currentUser.uid,
+					ownerEmail: data.ownerEmail || currentUser.email,
+					members,
+					updatedAt: serverTimestamp(),
+				},
+				{ merge: true },
+			)
+		}
+
+		return true
+	}
+
 	// Actions
 	const addItem = async (e) => {
 		e.preventDefault()
@@ -385,6 +437,8 @@ export default function ShoppingListApp() {
 
 			targetCollectionRef = collection(db, "sharedLists", activeListId, "items")
 		} else if (mode === "private") {
+			await ensurePrivateListReady()
+
 			targetCollectionRef = collection(
 				db,
 				"shoppingLists",
