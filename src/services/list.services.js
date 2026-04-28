@@ -36,7 +36,14 @@ export function listenToItems(type, listId, callback, onError) {
 			callback(items)
 		},
 		(error) => {
-			console.error("listenToItems error:", error)
+			const isExpectedAccessLoss =
+				type === "shared" &&
+				(error?.code === "permission-denied" || error?.code === "not-found")
+
+			if (!isExpectedAccessLoss) {
+				console.error("listenToItems error:", error)
+			}
+
 			if (onError) onError(error)
 		},
 	)
