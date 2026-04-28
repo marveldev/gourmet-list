@@ -402,7 +402,10 @@ export default function ShoppingListApp() {
 			? existingMembers
 			: [...existingMembers, currentUser.uid]
 
-		if (data.ownerId !== currentUser.uid || !existingMembers.includes(currentUser.uid)) {
+		if (
+			data.ownerId !== currentUser.uid ||
+			!existingMembers.includes(currentUser.uid)
+		) {
 			await setDoc(
 				listRef,
 				{

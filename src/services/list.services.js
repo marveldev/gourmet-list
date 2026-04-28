@@ -115,6 +115,10 @@ export const createSharedList = async (user) => {
 }
 
 export const createListInvite = async ({ listId, fromUser, toUid }) => {
+	if (!listId || typeof listId !== "string") {
+		throw new Error("Unable to send invite: missing list reference")
+	}
+
 	await addDoc(collection(db, "invites"), {
 		listId,
 		fromUid: fromUser.uid,
@@ -125,6 +129,24 @@ export const createListInvite = async ({ listId, fromUser, toUid }) => {
 	})
 }
 
+function resolveInviteListId(invite, inviteId) {
+	const directListId =
+		invite?.listId || invite?.sharedListId || invite?.listID || invite?.list
+
+	if (typeof directListId === "string" && directListId.trim()) {
+		return directListId.trim()
+	}
+
+	if (typeof inviteId === "string" && inviteId.includes("_")) {
+		const [legacyListId] = inviteId.split("_")
+		if (legacyListId?.trim()) {
+			return legacyListId.trim()
+		}
+	}
+
+	return null
+}
+
 export async function acceptInvite(inviteId, currentUser) {
 	const inviteRef = doc(db, "invites", inviteId)
 	const inviteSnapshot = await getDoc(inviteRef)
@@ -132,37 +154,58 @@ export async function acceptInvite(inviteId, currentUser) {
 	if (!inviteSnapshot.exists()) throw new Error("Invite not found")
 
 	const invite = inviteSnapshot.data()
+	const listId = resolveInviteListId(invite, inviteId)
 
-	if (!invite.listId) throw new Error("Invite is missing a list reference")
+	if (!listId) {
+		throw new Error("Invite is missing a list reference")
+	}
 
-	const listRef = doc(db, "sharedLists", invite.listId)
+	const listRef = doc(db, "sharedLists", listId)
 
-	const batch = writeBatch(db)
-	const notificationRef = doc(collection(db, "notifications"))
+	try {
+		await updateDoc(listRef, {
+			members: arrayUnion(currentUser.uid),
+		})
+	} catch (err) {
+		if (err?.code === "permission-denied") {
+			const readableListSnapshot = await getDoc(listRef)
 
-	batch.update(listRef, {
-		members: arrayUnion(currentUser.uid),
-	})
+			if (
+				!readableListSnapshot.exists() ||
+				!readableListSnapshot.data()?.members?.includes(currentUser.uid)
+			) {
+				throw err
+			}
+		} else if (err?.code === "not-found") {
+			throw new Error("The shared list for this invite was not found")
+		} else {
+			throw err
+		}
+	}
 
-	// mark invite accepted
-	batch.update(inviteRef, {
+	await updateDoc(inviteRef, {
 		status: "accepted",
 		respondedAt: serverTimestamp(),
+		listId,
 	})
 
-	batch.set(notificationRef, {
-		type: "inviteAccepted",
-		listId: invite.listId,
-		fromUid: currentUser.uid,
-		fromEmail: currentUser.email,
-		toUid: invite.fromUid,
-		createdAt: serverTimestamp(),
-		read: false,
-	})
+	if (invite.fromUid) {
+		const notificationRef = doc(collection(db, "notifications"))
+		await setDoc(notificationRef, {
+			type: "inviteAccepted",
+			listId,
+			fromUid: currentUser.uid,
+			fromEmail: currentUser.email,
+			toUid: invite.fromUid,
+			createdAt: serverTimestamp(),
+			read: false,
+		})
+	}
 
-	await batch.commit()
-
-	return invite
+	return {
+		...invite,
+		listId,
+	}
 }
 
 export async function declineInvite(inviteId, currentUser) {
