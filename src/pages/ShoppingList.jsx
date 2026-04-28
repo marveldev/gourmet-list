@@ -260,7 +260,10 @@ export default function ShoppingListApp() {
 		}
 
 		// Don't subscribe when in shared mode but no list is selected yet
-		if (mode === "shared" && !activeListId) return
+		if (mode === "shared" && !activeListId) {
+			setListMembers([])
+			return
+		}
 
 		const listRef =
 			mode === "private"
@@ -302,6 +305,14 @@ export default function ShoppingListApp() {
 				setListMembers(members)
 			},
 			(err) => {
+				if (mode === "shared" && err?.code === "permission-denied") {
+					setListMembers([])
+					setItems([])
+					setActiveListId(null)
+					setMode("private")
+					return
+				}
+
 				console.error("List members listener error:", err)
 				setListMembers([])
 			},
@@ -778,6 +789,7 @@ export default function ShoppingListApp() {
 									onInvite={() => setIsShareModalOpen(true)}
 									onDeleteList={() => {
 										setItems([])
+										setListMembers([])
 										setActiveListId(null)
 										setMode("private")
 									}}
