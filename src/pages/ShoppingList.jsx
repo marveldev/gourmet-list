@@ -238,10 +238,7 @@ export default function ShoppingListApp() {
 
 				// ✅ ONLY NOW attach listener
 				unsubscribe = listenToItems("shared", activeListId, setItems, (err) => {
-					if (
-						err?.code !== "permission-denied" &&
-						err?.code !== "not-found"
-					) {
+					if (err?.code !== "permission-denied" && err?.code !== "not-found") {
 						console.error("Shared items listener error:", err)
 					}
 					setItems([])
